@@ -37,11 +37,11 @@ elif os.path.getsize('mnist') > 0:
     raise Exception('There is already a folder for MNIST data.')
 
 # Extract MNIST into np arrays.
-train_data = extract_data("train-images-idx3-ubyte.gz", 60000)
-test_data = extract_data("t10k-images-idx3-ubyte.gz", 10000)
+train_data = extract_data(os.path.join("raw", "train-images-idx3-ubyte.gz"), 60000)
+test_data = extract_data(os.path.join("raw", "t10k-images-idx3-ubyte.gz"), 10000)
 
-#train_labels = extract_labels("train-labels-idx1-ubyte.gz", 60000)
-#test_labels = extract_labels("t10k-labels-idx1-ubyte.gz", 10000)
+#train_labels = extract_labels(os.path.join("raw", "train-labels-idx1-ubyte.gz"), 60000)
+#test_labels = extract_labels(os.path.join("raw", "t10k-labels-idx1-ubyte.gz"), 10000)
 
 mnist_data = np.concatenate([train_data, test_data], axis=0)
 
