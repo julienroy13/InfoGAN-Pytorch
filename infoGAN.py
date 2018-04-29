@@ -94,6 +94,7 @@ class infoGAN(object):
         self.dataset = args.dataset
         self.log_dir = args.log_dir
         self.gpu_mode = args.gpu_mode
+        self.gpu_id = args.gpu_id
         self.model_name = args.gan_type
         self.SUPERVISED = SUPERVISED        # if it is true, label info is directly used for code
         self.len_discrete_code = 10         # categorical distribution (i.e. label)
@@ -107,11 +108,11 @@ class infoGAN(object):
         self.info_optimizer = optim.Adam(itertools.chain(self.G.parameters(), self.D.parameters()), lr=args.lrD, betas=(args.beta1, args.beta2))
 
         if self.gpu_mode:
-            self.G.cuda()
-            self.D.cuda()
-            self.BCE_loss = nn.BCELoss().cuda()
-            self.CE_loss = nn.CrossEntropyLoss().cuda()
-            self.MSE_loss = nn.MSELoss().cuda()
+            self.G.cuda(self.gpu_id)
+            self.D.cuda(self.gpu_id)
+            self.BCE_loss = nn.BCELoss().cuda(self.gpu_id)
+            self.CE_loss = nn.CrossEntropyLoss().cuda(self.gpu_id)
+            self.MSE_loss = nn.MSELoss().cuda(self.gpu_id)
         else:
             self.BCE_loss = nn.BCELoss()
             self.CE_loss = nn.CrossEntropyLoss()
@@ -166,9 +167,9 @@ class infoGAN(object):
 
         if self.gpu_mode:
             self.sample_z_, self.sample_y_, self.sample_c_, self.sample_z2_, self.sample_y2_, self.sample_c2_ = \
-                Variable(self.sample_z_.cuda(), volatile=True), Variable(self.sample_y_.cuda(), volatile=True), \
-                Variable(self.sample_c_.cuda(), volatile=True), Variable(self.sample_z2_.cuda(), volatile=True), \
-                Variable(self.sample_y2_.cuda(), volatile=True), Variable(self.sample_c2_.cuda(), volatile=True)
+                Variable(self.sample_z_.cuda(self.gpu_id), volatile=True), Variable(self.sample_y_.cuda(self.gpu_id), volatile=True), \
+                Variable(self.sample_c_.cuda(self.gpu_id), volatile=True), Variable(self.sample_z2_.cuda(self.gpu_id), volatile=True), \
+                Variable(self.sample_y2_.cuda(self.gpu_id), volatile=True), Variable(self.sample_c2_.cuda(self.gpu_id), volatile=True)
         else:
             self.sample_z_, self.sample_y_, self.sample_c_, self.sample_z2_, self.sample_y2_, self.sample_c2_ = \
                 Variable(self.sample_z_, volatile=True), Variable(self.sample_y_, volatile=True), \
@@ -184,7 +185,7 @@ class infoGAN(object):
         self.train_hist['total_time'] = []
 
         if self.gpu_mode:
-            self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1).cuda()), Variable(torch.zeros(self.batch_size, 1).cuda())
+            self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1).cuda(self.gpu_id)), Variable(torch.zeros(self.batch_size, 1).cuda(self.gpu_id))
         else:
             self.y_real_, self.y_fake_ = Variable(torch.ones(self.batch_size, 1)), Variable(torch.zeros(self.batch_size, 1))
 
@@ -207,8 +208,8 @@ class infoGAN(object):
                 y_cont_ = torch.from_numpy(np.random.uniform(-1, 1, size=(self.batch_size, 2))).type(torch.FloatTensor)
 
                 if self.gpu_mode:
-                    x_, z_, y_disc_, y_cont_ = Variable(x_.cuda()), Variable(z_.cuda()), \
-                                               Variable(y_disc_.cuda()), Variable(y_cont_.cuda())
+                    x_, z_, y_disc_, y_cont_ = Variable(x_.cuda(self.gpu_id)), Variable(z_.cuda(self.gpu_id)), \
+                                               Variable(y_disc_.cuda(self.gpu_id)), Variable(y_cont_.cuda(self.gpu_id))
                 else:
                     x_, z_, y_disc_, y_cont_ = Variable(x_), Variable(z_), Variable(y_disc_), Variable(y_cont_)
 

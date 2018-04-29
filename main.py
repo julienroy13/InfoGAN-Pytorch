@@ -2,15 +2,8 @@
 
 import argparse, os
 from GAN import GAN
-from CGAN import CGAN
-from LSGAN import LSGAN
-from DRAGAN import DRAGAN
-from ACGAN import ACGAN
-from WGAN import WGAN
-from WGAN_GP import WGAN_GP
 from infoGAN import infoGAN
-from EBGAN import EBGAN
-from BEGAN import BEGAN
+
 
 """parsing and configuration"""
 def parse_args():
@@ -19,10 +12,10 @@ def parse_args():
 
     parser.add_argument('--gan_type', type=str, default='EBGAN',
                         choices=['GAN', 'CGAN', 'infoGAN', 'ACGAN', 'EBGAN', 'BEGAN', 'WGAN', 'WGAN_GP', 'DRAGAN', 'LSGAN'],
-                        help='The type of GAN')#, required=True)
-    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion-mnist', 'celebA'],
-                        help='The name of dataset')
-    parser.add_argument('--epoch', type=int, default=25, help='The number of epochs to run')
+                        help='The type of GAN', required=True)
+    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion-mnist', 'celebA', 'synth', '3Dchairs'],
+                        help='The name of dataset', required=True)
+    parser.add_argument('--epoch', type=int, default=30, help='The number of epochs to run')
     parser.add_argument('--batch_size', type=int, default=64, help='The size of batch')
     parser.add_argument('--save_dir', type=str, default='models',
                         help='Directory name to save the model')
@@ -35,6 +28,7 @@ def parse_args():
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--gpu_mode', type=bool, default=True)
+    parser.add_argument('--gpu_id', type=int, default=0)
 
     return check_args(parser.parse_args())
 
@@ -73,31 +67,15 @@ def main():
     if args is None:
         exit()
 
-        # declare instance for GAN
+    # declare instance for GAN
     if args.gan_type == 'GAN':
         gan = GAN(args)
-    elif args.gan_type == 'CGAN':
-        gan = CGAN(args)
-    elif args.gan_type == 'ACGAN':
-        gan = ACGAN(args)
     elif args.gan_type == 'infoGAN':
-        gan = infoGAN(args, SUPERVISED = True)
-    elif args.gan_type == 'EBGAN':
-        gan = EBGAN(args)
-    elif args.gan_type == 'WGAN':
-        gan = WGAN(args)
-    elif args.gan_type == 'WGAN_GP':
-        gan = WGAN_GP(args)
-    elif args.gan_type == 'DRAGAN':
-        gan = DRAGAN(args)
-    elif args.gan_type == 'LSGAN':
-        gan = LSGAN(args)
-    elif args.gan_type == 'BEGAN':
-        gan = BEGAN(args)
+        gan = infoGAN(args, SUPERVISED=False)
     else:
         raise Exception("[!] There is no option for " + args.gan_type)
 
-        # launch the graph in a session
+    # launch the graph in a session
     gan.train()
     print(" [*] Training finished!")
 
