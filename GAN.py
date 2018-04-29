@@ -102,6 +102,11 @@ class GAN(object):
         self.model_name = args.gan_type
         self.test_only = test_only
         self.gan_type = args.gan_type
+        self.seed = args.seed
+
+        # sets the seed
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
 
         # networks init
         self.G = generator(self.dataset)

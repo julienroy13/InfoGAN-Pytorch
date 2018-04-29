@@ -96,9 +96,14 @@ class infoGAN(object):
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
         self.model_name = args.gan_type
+        self.seed = args.seed
         self.SUPERVISED = SUPERVISED        # if it is true, label info is directly used for code
         self.len_discrete_code = 10         # categorical distribution (i.e. label)
         self.len_continuous_code = 2        # gaussian distribution (e.g. rotation, thickness)
+
+        # sets the seed
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
 
         # networks init
         self.G = generator(self.dataset)

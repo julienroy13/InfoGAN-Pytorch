@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument('--gan_type', type=str, default='EBGAN',
-                        choices=['GAN', 'CGAN', 'infoGAN', 'ACGAN', 'EBGAN', 'BEGAN', 'WGAN', 'WGAN_GP', 'DRAGAN', 'LSGAN'],
+                        choices=['GAN', 'infoGAN'],
                         help='The type of GAN', required=True)
     parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion-mnist', 'celebA', 'synth', '3Dchairs'],
                         help='The name of dataset', required=True)
@@ -29,39 +29,33 @@ def parse_args():
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--gpu_mode', type=bool, default=True)
     parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--seed', type=int, default=1234)
 
     return check_args(parser.parse_args())
 
 """checking arguments"""
 def check_args(args):
-    # --save_dir
+    # creates directories if necessary
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    # --result_dir
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
 
-    # --result_dir
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
 
-    # --epoch
-    try:
-        assert args.epoch >= 1
-    except:
-        print('number of epochs must be larger than or equal to one')
+    # makes sure batch_size and epoch are positive
+    if args.epoch < 1:
+        raise Exception('Number of epochs must be larger than or equal to one')
 
-    # --batch_size
-    try:
-        assert args.batch_size >= 1
-    except:
-        print('batch size must be larger than or equal to one')
+    if args.batch_size < 1
+        raise Exception('Batch size must be larger than or equal to one')
 
     return args
 
-"""main"""
-def main():
+
+if __name__ == '__main__':
     # parse arguments
     args = parse_args()
     if args is None:
@@ -72,16 +66,11 @@ def main():
         gan = GAN(args)
     elif args.gan_type == 'infoGAN':
         gan = infoGAN(args, SUPERVISED=False)
-    else:
-        raise Exception("[!] There is no option for " + args.gan_type)
 
-    # launch the graph in a session
+    # trains the model
     gan.train()
-    print(" [*] Training finished!")
+    print("[*] Training finished!")
 
     # visualize learned generator
     gan.visualize_results(args.epoch)
-    print(" [*] Testing finished!")
-
-if __name__ == '__main__':
-    main()
+    print("[*] Testing finished!")
