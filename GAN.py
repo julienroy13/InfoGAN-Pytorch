@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 class generator(nn.Module):
@@ -102,11 +102,6 @@ class GAN(object):
         self.model_name = args.gan_type
         self.test_only = test_only
         self.gan_type = args.gan_type
-        self.seed = args.seed
-
-        # sets the seed
-        np.random.seed(self.seed)
-        torch.manual_seed(self.seed)
 
         # networks init
         self.G = generator(self.dataset)
@@ -129,10 +124,9 @@ class GAN(object):
         if not test_only:
             # load dataset
             if self.dataset == 'mnist':
-                self.data_loader = DataLoader(datasets.MNIST('data/mnist', train=True, download=True,
-                                                                              transform=transforms.Compose(
-                                                                                  [transforms.ToTensor()])),
-                                                               batch_size=self.batch_size, shuffle=True)
+                X, Y = utils.load_mnist(args.dataset)
+                dset = TensorDataset(X, Y)
+                self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
             elif self.dataset == 'fashion-mnist':
                 self.data_loader = DataLoader(
                     datasets.FashionMNIST('data/fashion-mnist', train=True, download=True, transform=transforms.Compose(

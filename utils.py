@@ -16,14 +16,18 @@ def load_mnist(dataset):
     # Loads mnist data from pkl file
     data_dir = os.path.join("data", dataset)
     with open(os.path.join(data_dir, "mnist_data.pkl"), "rb") as f:
-        X = pickle.load(f)
+        mnist_data = pickle.load(f)
+
+    X = mnist_data['X']
+    Y = mnist_data['Y']
 
     # Reshape to (batch, channels, height, width) and scales in [0., 1.]
     X = X.transpose(0, 3, 1, 2) / 255.
 
     # Converts X to torch tensor
     X = torch.from_numpy(X).type(torch.FloatTensor)
-    return X
+    Y = torch.from_numpy(Y).type(torch.FloatTensor)
+    return X, Y
 
 def load_celebA(dir, transform, batch_size, shuffle):
     # transform = transforms.Compose([
