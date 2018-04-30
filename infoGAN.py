@@ -129,7 +129,7 @@ class infoGAN(object):
         print('-----------------------------------------------')
 
         # load mnist
-        self.data_X, self.data_Y = utils.load_mnist(args.dataset)
+        self.data_X = utils.load_mnist(args.dataset)
         self.z_dim = 62
         self.y_dim = 10
 

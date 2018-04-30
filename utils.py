@@ -1,57 +1,29 @@
 # CODE FROM : github.com/znxlwm/pytorch-generative-model-collections
 
-import os, gzip, torch
+import os
+import pickle
+import torch
 import torch.nn as nn
 import numpy as np
 import scipy.misc
 import imageio
 import matplotlib.pyplot as plt
 from torchvision import datasets, transforms
+import pdb
 
 def load_mnist(dataset):
-    data_dir = os.path.join("./data", dataset)
+    
+    # Loads mnist data from pkl file
+    data_dir = os.path.join("data", dataset)
+    with open(os.path.join(data_dir, "mnist_data.pkl"), "rb") as f:
+        X = pickle.load(f)
 
-    def extract_data(filename, num_data, head_size, data_size):
-        with gzip.open(filename) as bytestream:
-            bytestream.read(head_size)
-            buf = bytestream.read(data_size * num_data)
-            data = np.frombuffer(buf, dtype=np.uint8).astype(np.float)
-        return data
-
-    data = extract_data(data_dir + '/raw/train-images-idx3-ubyte', 60000, 16, 28 * 28)
-    trX = data.reshape((60000, 28, 28, 1))
-
-    data = extract_data(data_dir + '/raw/train-labels-idx1-ubyte', 60000, 8, 1)
-    trY = data.reshape((60000))
-
-    data = extract_data(data_dir + '/raw/t10k-images-idx3-ubyte', 10000, 16, 28 * 28)
-    teX = data.reshape((10000, 28, 28, 1))
-
-    data = extract_data(data_dir + '/raw/t10k-labels-idx1-ubyte', 10000, 8, 1)
-    teY = data.reshape((10000))
-
-    trY = np.asarray(trY).astype(np.int)
-    teY = np.asarray(teY)
-
-    X = np.concatenate((trX, teX), axis=0)
-    y = np.concatenate((trY, teY), axis=0).astype(np.int)
-
-    seed = 547
-    np.random.seed(seed)
-    np.random.shuffle(X)
-    np.random.seed(seed)
-    np.random.shuffle(y)
-
-    y_vec = np.zeros((len(y), 10), dtype=np.float)
-    for i, label in enumerate(y):
-        y_vec[i, y[i]] = 1
-
+    # Reshape to (batch, channels, height, width) and scales in [0., 1.]
     X = X.transpose(0, 3, 1, 2) / 255.
-    # y_vec = y_vec.transpose(0, 3, 1, 2)
 
+    # Converts X to torch tensor
     X = torch.from_numpy(X).type(torch.FloatTensor)
-    y_vec = torch.from_numpy(y_vec).type(torch.FloatTensor)
-    return X, y_vec
+    return X
 
 def load_celebA(dir, transform, batch_size, shuffle):
     # transform = transforms.Compose([
@@ -66,7 +38,6 @@ def load_celebA(dir, transform, batch_size, shuffle):
     data_loader = torch.utils.data.DataLoader(dset, batch_size, shuffle)
 
     return data_loader
-
 
 def print_network(net):
     num_params = 0
