@@ -33,19 +33,20 @@ def extract_labels(filename, num_images):
 # Creates a folder if necessary
 if not os.path.exists('mnist'):
 	os.makedirs('mnist')
-elif os.path.getsize('mnist') > 0:
-    raise Exception('There is already a folder for MNIST data.')
 
 # Extract MNIST into np arrays.
 train_data = extract_data(os.path.join("raw", "train-images-idx3-ubyte.gz"), 60000)
 test_data = extract_data(os.path.join("raw", "t10k-images-idx3-ubyte.gz"), 10000)
 
-#train_labels = extract_labels(os.path.join("raw", "train-labels-idx1-ubyte.gz"), 60000)
-#test_labels = extract_labels(os.path.join("raw", "t10k-labels-idx1-ubyte.gz"), 10000)
+train_labels = extract_labels(os.path.join("raw", "train-labels-idx1-ubyte.gz"), 60000)
+test_labels = extract_labels(os.path.join("raw", "t10k-labels-idx1-ubyte.gz"), 10000)
 
-mnist_data = np.concatenate([train_data, test_data], axis=0)
+mnist_data = {}
+mnist_data['X'] = np.concatenate([train_data, test_data], axis=0)
+mnist_data['Y'] = np.concatenate([train_labels, test_labels], axis=0)
 
-print("mnist_data.shape : {}".format(mnist_data.shape))
+print("mnist_data['X'].shape : {}".format(mnist_data['X'].shape))
+print("mnist_data['Y'].shape : {}".format(mnist_data['Y'].shape))
 
 with open(os.path.join("mnist", "mnist_data.pkl"), "wb") as f:
     pickle.dump(mnist_data, f, protocol=pickle.HIGHEST_PROTOCOL)
