@@ -3,6 +3,8 @@
 import argparse, os
 from GAN import GAN
 from infoGAN import infoGAN
+import torch
+import numpy as np
 
 
 """parsing and configuration"""
@@ -49,7 +51,7 @@ def check_args(args):
     if args.epoch < 1:
         raise Exception('Number of epochs must be larger than or equal to one')
 
-    if args.batch_size < 1
+    if args.batch_size < 1:
         raise Exception('Batch size must be larger than or equal to one')
 
     return args
@@ -58,8 +60,10 @@ def check_args(args):
 if __name__ == '__main__':
     # parse arguments
     args = parse_args()
-    if args is None:
-        exit()
+
+    # sets random seeds
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
 
     # declare instance for GAN
     if args.gan_type == 'GAN':
