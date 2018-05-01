@@ -1,6 +1,10 @@
-# CODE FROM : github.com/znxlwm/pytorch-generative-model-collections
-
-import utils, torch, time, os, pickle, itertools
+# code inspired by : github.com/znxlwm/pytorch-generative-model-collections
+import utils
+import torch
+import time
+import os
+import pickle
+import itertools
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,146 +13,188 @@ import matplotlib.pyplot as plt
 from torch.autograd import Variable
 
 class generator(nn.Module):
-    # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-    # Architecture : FC1024_BR-FC7x7x128_BR-(64)4dc2s_BR-(1)4dc2s_S
-    def __init__(self, dataset = 'mnist'):
+    def __init__(self, latent_dim, output_height, output_width, output_features):
         super(generator, self).__init__()
-        if dataset == 'mnist' or 'fashion-mnist':
-            self.input_height = 28
-            self.input_width = 28
-            self.input_dim = 62 + 12
-            self.output_dim = 1
+        self.latent_dim = latent_dim
+        self.output_height = output_height
+        self.output_width = output_width
+        self.output_features = output_features
 
-        self.fc = nn.Sequential(
-            nn.Linear(self.input_dim, 1024),
+        # First layers are fully connected
+        self.fc_part = nn.Sequential(
+            nn.Linear(self.latent_dim, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
-            nn.Linear(1024, 128 * (self.input_height // 4) * (self.input_width // 4)),
-            nn.BatchNorm1d(128 * (self.input_height // 4) * (self.input_width // 4)),
+            nn.Linear(1024, 128 * (self.output_height // 4) * (self.output_width // 4)),
+            nn.BatchNorm1d(128 * (self.output_height // 4) * (self.output_width // 4)),
             nn.ReLU(),
         )
-        self.deconv = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, 4, 2, 1),
+
+        # Then we switch to deconvolution (transpose convolutions)
+        self.deconv_part = nn.Sequential(
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, self.output_dim, 4, 2, 1),
-            nn.Sigmoid(),
+            nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
+            nn.Sigmoid(), #[0, 1] images
         )
-        utils.initialize_weights(self)
+        
+        self.initialize_weights()
 
-    def forward(self, input, cont_code, dist_code):
-        x = torch.cat([input, cont_code, dist_code], 1)
-        x = self.fc(x)
-        x = x.view(-1, 128, (self.input_height // 4), (self.input_width // 4))
-        x = self.deconv(x)
+    def forward(self, z, cont_code, discr_code):
+        # Concatenates latent vector and latent codes (continuous and discrete)
+        x = torch.cat([z, cont_code, discr_code], 1)
+        
+        # Forwards through first fully connected layers
+        x = self.fc_part(x)
+        
+        # Reshapes into feature maps 4 times smaller than original size
+        x = x.view(-1, 128, (self.output_height // 4), (self.output_width // 4))
+        
+        # Feedforward through deconvolutional part (upsampling)
+        x = self.deconv_part(x)
 
         return x
 
-class discriminator(nn.Module):
-    # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-    # Architecture : (64)4c2s-(128)4c2s_BL-FC1024_BL-FC1_S
-    def __init__(self, dataset='mnist'):
-        super(discriminator, self).__init__()
-        if dataset == 'mnist' or 'fashion-mnist':
-            self.input_height = 28
-            self.input_width = 28
-            self.input_dim = 1
-            self.output_dim = 1
-            self.len_discrete_code = 10  # categorical distribution (i.e. label)
-            self.len_continuous_code = 2  # gaussian distribution (e.g. rotation, thickness)
+    def initialize_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.ConvTranspose2d) or isinstance(module, nn.Linear):
+                module.weight.data.normal_(0, 0.02)
+                module.bias.data.zero_()
 
-        self.conv = nn.Sequential(
-            nn.Conv2d(self.input_dim, 64, 4, 2, 1),
+class discriminator(nn.Module):
+    def __init__(self, input_height, input_width, input_features, output_dim, len_discrete_code, len_continuous_code):
+        super(discriminator, self).__init__()
+        self.input_height = input_height
+        self.input_width = input_width
+        self.input_features = input_features
+        self.output_dim = output_dim
+        self.len_discrete_code = len_discrete_code
+        self.len_continuous_code = len_continuous_code
+
+        # First layers are convolutional (subsampling)
+        self.conv_part = nn.Sequential(
+            nn.Conv2d(self.input_features, 64, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 128, 4, 2, 1),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
         )
-        self.fc = nn.Sequential(
+
+        # Then we switch to fully connected before sigmoidal output unit
+        self.fc_part = nn.Sequential(
             nn.Linear(128 * (self.input_height // 4) * (self.input_width // 4), 1024),
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
             nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
             nn.Sigmoid(),
         )
-        utils.initialize_weights(self)
+        
+        self.initialize_weights()
 
-    def forward(self, input):
-        x = self.conv(input)
-        x = x.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
-        x = self.fc(x)
-        a = F.sigmoid(x[:, self.output_dim])
-        b = x[:, self.output_dim:self.output_dim + self.len_continuous_code]
-        c = x[:, self.output_dim + self.len_continuous_code:]
+    def forward(self, x):
+        # Feedforwards through convolutional (subsampling) layers
+        y = self.conv_part(x)
+
+        # Reshapes as a vector
+        y = y.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
+
+        # Feedforwards through fully connected layers
+        y = self.fc_part(y)
+
+        # D output
+        a = F.sigmoid(y[:, 0]) # MODIF
+
+        # Q outputs
+        b = x[:, 1:1+self.len_continuous_code] # continuous codes
+        c = x[:, 1+self.len_continuous_code:]  # discrete codes
 
         return a, b, c
 
+    def initialize_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.ConvTranspose2d) or isinstance(module, nn.Linear):
+                module.weight.data.normal_(0, 0.02)
+                module.bias.data.zero_()
+
 class infoGAN(object):
-    def __init__(self, args, SUPERVISED=True):
-        # parameters
+    def __init__(self, args, test_only=False):
         self.epoch = args.epoch
         self.sample_num = 100
         self.batch_size = args.batch_size
         self.save_dir = args.save_dir
-        self.result_dir = args.result_dir
         self.dataset = args.dataset
-        self.log_dir = args.log_dir
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
         self.model_name = args.gan_type
-        self.seed = args.seed
-        self.SUPERVISED = SUPERVISED        # if it is true, label info is directly used for code
-        self.len_discrete_code = 10         # categorical distribution (i.e. label)
-        self.len_continuous_code = 2        # gaussian distribution (e.g. rotation, thickness)
 
-        # sets the seed
-        np.random.seed(self.seed)
-        torch.manual_seed(self.seed)
+        # Defines input/output dimensions
+        if self.dataset == 'mnist':
+            self.x_height = 28
+            self.x_width = 28
+            self.x_features = 1
+            self.y_dim = 1
+            self.c_discr_dim = 10     # categorical distribution (i.e. label)
+            self.c_cont_dim = 2       # gaussian distribution (e.g. rotation, thickness)
+            self.c_dim = self.c_discr_dim + self.c_cont_dim
+            self.z_dim = 62
 
-        # networks init
-        self.G = generator(self.dataset)
-        self.D = discriminator(self.dataset)
+        elif dataset == '3Dchairs':
+            raise NotImplemented
+
+        elif dataset == 'synth':
+            raise NotImplemented
+
+        else:
+            raise Exception('Unsupported dataset')
+
+        # Initializes the models and their optimizers
+        self.G = generator(self.z_dim + self.c_dim, self.x_height, self.x_width, self.x_features)
+        utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
+        
+        self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.c_discr_dim, self.c_cont_dim)
+        utils.print_network(self.D)
         self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
+        
         self.info_optimizer = optim.Adam(itertools.chain(self.G.parameters(), self.D.parameters()), lr=args.lrD, betas=(args.beta1, args.beta2))
 
+        # Loss functions
+        self.BCE_loss = nn.BCELoss()
+        self.CE_loss = nn.CrossEntropyLoss()
+        self.MSE_loss = nn.MSELoss()
+
+        # Sends the models of GPU (if defined)
         if self.gpu_mode:
             self.G.cuda(self.gpu_id)
             self.D.cuda(self.gpu_id)
-            self.BCE_loss = nn.BCELoss().cuda(self.gpu_id)
-            self.CE_loss = nn.CrossEntropyLoss().cuda(self.gpu_id)
-            self.MSE_loss = nn.MSELoss().cuda(self.gpu_id)
-        else:
-            self.BCE_loss = nn.BCELoss()
-            self.CE_loss = nn.CrossEntropyLoss()
-            self.MSE_loss = nn.MSELoss()
+            self.BCE_loss.cuda(self.gpu_id)
+            self.CE_loss.cuda(self.gpu_id)
+            self.MSE_loss.cuda(self.gpu_id)
 
-        print('---------- Networks architecture -------------')
-        utils.print_network(self.G)
-        utils.print_network(self.D)
-        print('-----------------------------------------------')
-
-        # load mnist
-        self.data_X, self.data_Y = utils.load_mnist(args.dataset)
-        self.z_dim = 62
-        self.y_dim = 10
+        # Load the dataset
+        if not test_only:
+            if self.dataset == 'mnist':
+                self.data_X, self.data_Y = utils.load_mnist(args.dataset)
+                #dset = TensorDataset(X, Y)
+                #self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
 
         # fixed noise & condition
         self.sample_z_ = torch.zeros((self.sample_num, self.z_dim))
         for i in range(10):
-            self.sample_z_[i*self.y_dim] = torch.rand(1, self.z_dim)
-            for j in range(1, self.y_dim):
-                self.sample_z_[i*self.y_dim + j] = self.sample_z_[i*self.y_dim]
+            self.sample_z_[i*self.c_discr_dim] = torch.rand(1, self.z_dim)
+            for j in range(1, self.c_discr_dim):
+                self.sample_z_[i*self.c_discr_dim + j] = self.sample_z_[i*self.c_discr_dim]
 
         temp = torch.zeros((10, 1))
-        for i in range(self.y_dim):
+        for i in range(self.c_discr_dim):
             temp[i, 0] = i
 
         temp_y = torch.zeros((self.sample_num, 1))
         for i in range(10):
-            temp_y[i*self.y_dim: (i+1)*self.y_dim] = temp
+            temp_y[i*self.c_discr_dim: (i+1)*self.c_discr_dim] = temp
 
-        self.sample_y_ = torch.zeros((self.sample_num, self.y_dim))
+        self.sample_y_ = torch.zeros((self.sample_num, self.c_discr_dim))
         self.sample_y_.scatter_(1, temp_y.type(torch.LongTensor), 1)
         self.sample_c_ = torch.zeros((self.sample_num, self.len_continuous_code))
 
