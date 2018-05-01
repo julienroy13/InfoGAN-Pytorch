@@ -12,22 +12,12 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 class generator(nn.Module):
-    def __init__(self, dataset):
+    def __init__(self, latent_dim, output_height, output_width, output_features):
         super(generator, self).__init__()
-        if dataset == 'mnist':
-            self.latent_dim = 62
-            self.output_height = 28
-            self.output_width = 28
-            self.output_features = 1
-
-        elif dataset == '3Dchairs':
-            raise NotImplemented
-
-        elif dataset == 'synth':
-            raise NotImplemented
-
-        else:
-            raise Exception('Unsupported dataset')
+        self.latent_dim = latent_dim
+        self.output_height = output_height
+        self.output_width = output_width
+        self.output_features = output_features
 
         # First layers are fully connected
         self.fc_part = nn.Sequential(
@@ -50,9 +40,9 @@ class generator(nn.Module):
         
         self.initialize_weights()
 
-    def forward(self, input):
+    def forward(self, z):
         # Forwards through first fully connected layers
-        x = self.fc_part(input)
+        x = self.fc_part(z)
         
         # Reshapes into feature maps 4 times smaller than original size
         x = x.view(-1, 128, (self.output_height // 4), (self.output_width // 4))
@@ -69,22 +59,12 @@ class generator(nn.Module):
                 module.bias.data.zero_()
 
 class discriminator(nn.Module):
-    def __init__(self, dataset='mnist'):
+    def __init__(self, input_height, input_width, input_features, output_dim):
         super(discriminator, self).__init__()
-        if dataset == 'mnist':
-            self.input_height = 28
-            self.input_width = 28
-            self.input_features = 1
-            self.output_dim = 1
-
-        elif dataset == '3Dchairs':
-            raise NotImplemented
-
-        elif dataset == 'synth':
-            raise NotImplemented
-
-        else:
-            raise Exception('Unsupported dataset')
+        self.input_height = input_height
+        self.input_width = input_width
+        self.input_features = input_features
+        self.output_dim = output_dim
 
         # First layers are convolutional (subsampling)
         self.conv_part = nn.Sequential(
@@ -106,17 +86,17 @@ class discriminator(nn.Module):
 
         self.initialize_weights()
 
-    def forward(self, input):
+    def forward(self, x):
         # Feedforwards through convolutional (subsampling) layers
-        x = self.conv_part(input)
+        y = self.conv_part(x)
         
         # Reshapes as a vector
-        x = x.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
+        y = y.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
         
         # Feedforwards through fully connected layers
-        x = self.fc_part(x)
+        y = self.fc_part(y)
 
-        return x
+        return y
 
     def initialize_weights(self):
         for module in self.modules():
@@ -127,26 +107,39 @@ class discriminator(nn.Module):
 
 class GAN(object):
     def __init__(self, args, test_only=False):
-        # parameters
         self.epoch = args.epoch
-        self.sample_num = 16
         self.batch_size = args.batch_size
         self.save_dir = args.save_dir
-        self.result_dir = args.result_dir
         self.dataset = args.dataset
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
-        self.model_name = args.gan_type
         self.test_only = test_only
-        self.gan_type = args.gan_type
         self.z_dim = 62
 
+        # Defines input/output dimensions
+        if self.dataset == 'mnist':
+            self.x_height = 28
+            self.x_width = 28
+            self.x_features = 1
+            self.y_dim = 1
+            self.z_dim = 62
+
+        elif dataset == '3Dchairs':
+            raise NotImplemented
+
+        elif dataset == 'synth':
+            raise NotImplemented
+
+        else:
+            raise Exception('Unsupported dataset')
+
         # Initializes the models and their optimizers
-        self.G = generator(self.dataset)
+        self.G = generator(self.z_dim, self.x_height, self.x_width, self.x_features)
         utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
+        
         if not test_only: 
-            self.D = discriminator(self.dataset)
+            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim)
             utils.print_network(self.D)
             self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
 
@@ -157,7 +150,7 @@ class GAN(object):
         if self.gpu_mode:
             self.G.cuda(self.gpu_id)
             if not test_only: self.D.cuda(self.gpu_id)
-            nn.BCELoss().cuda(self.gpu_id)            
+            self.BCE_loss.cuda(self.gpu_id)            
 
         # Load the dataset
         if not test_only:
@@ -257,28 +250,28 @@ class GAN(object):
         self.save()
         
         # Saves the plot of losses for G and D
-        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, self.model_name, 'curves'))
+        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves'))
 
     def save(self):
         # Defines save directory
-        save_dir = os.path.join(self.save_dir, self.dataset, self.model_name)
+        save_dir = os.path.join(self.save_dir, self.dataset, "GAN")
 
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
         # Saves the models
-        torch.save(self.G.state_dict(), os.path.join(save_dir, self.model_name + '_G.pkl'))
-        torch.save(self.D.state_dict(), os.path.join(save_dir, self.model_name + '_D.pkl'))
+        torch.save(self.G.state_dict(), os.path.join(save_dir, "GAN" + '_G.pkl'))
+        torch.save(self.D.state_dict(), os.path.join(save_dir, "GAN" + '_D.pkl'))
 
         # Saves the train history
-        with open(os.path.join(save_dir, self.model_name + '_history.pkl'), 'wb') as f:
+        with open(os.path.join(save_dir, "GAN" + '_history.pkl'), 'wb') as f:
             pickle.dump(self.train_history, f)
 
     def load(self):
         # Defines save directory
-        save_dir = os.path.join(self.save_dir, self.dataset, self.model_name)
+        save_dir = os.path.join(self.save_dir, self.dataset, "GAN")
 
         # Loads the necessary models
-        self.G.load_state_dict(torch.load(os.path.join(save_dir, self.model_name + '_G.pkl')))
+        self.G.load_state_dict(torch.load(os.path.join(save_dir, "GAN" + '_G.pkl')))
         if not self.test_only: 
-            self.D.load_state_dict(torch.load(os.path.join(save_dir, self.model_name + '_D.pkl')))
+            self.D.load_state_dict(torch.load(os.path.join(save_dir, "GAN" + '_D.pkl')))
