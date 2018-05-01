@@ -1,4 +1,4 @@
-# CODE FROM : github.com/znxlwm/pytorch-generative-model-collections
+# code inspired from : github.com/znxlwm/pytorch-generative-model-collections
 
 import argparse, os
 from GAN import GAN
@@ -7,7 +7,6 @@ import torch
 import numpy as np
 
 
-"""parsing and configuration"""
 def parse_args():
     desc = "Pytorch implementation of GAN collections"
     parser = argparse.ArgumentParser(description=desc)
@@ -23,8 +22,6 @@ def parse_args():
                         help='Directory name to save the model')
     parser.add_argument('--result_dir', type=str, default='results',
                         help='Directory name to save the generated images')
-    parser.add_argument('--log_dir', type=str, default='logs',
-                        help='Directory name to save training logs')
     parser.add_argument('--lrG', type=float, default=0.0002)
     parser.add_argument('--lrD', type=float, default=0.0002)
     parser.add_argument('--beta1', type=float, default=0.5)
@@ -35,7 +32,7 @@ def parse_args():
 
     return check_args(parser.parse_args())
 
-"""checking arguments"""
+
 def check_args(args):
     # creates directories if necessary
     if not os.path.exists(args.save_dir):
@@ -43,9 +40,6 @@ def check_args(args):
 
     if not os.path.exists(args.result_dir):
         os.makedirs(args.result_dir)
-
-    if not os.path.exists(args.log_dir):
-        os.makedirs(args.log_dir)
 
     # makes sure batch_size and epoch are positive
     if args.epoch < 1:
@@ -73,8 +67,3 @@ if __name__ == '__main__':
 
     # trains the model
     gan.train()
-    print("[*] Training finished!")
-
-    # visualize learned generator
-    gan.visualize_results(args.epoch)
-    print("[*] Testing finished!")
