@@ -1,6 +1,6 @@
 import argparse, os
 from GAN import GAN
-from WGAN import WGAN
+from infoGAN import infoGAN
 
 import matplotlib.pyplot as plt
 
@@ -13,8 +13,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument('--gan_type', type=str,
-                        choices=['GAN', 'WGAN'],
-                        help='The type of GAN')#, required=True)
+                        choices=['GAN', 'infoGAN'],
+                        help='The type of GAN', required=True)
     
     parser.add_argument('--batch_size', type=int, default=1, help='The size of batch')
     
@@ -26,8 +26,8 @@ def parse_args():
     
 
     # UNUSED
-    parser.add_argument('--dataset', type=str, default='celebA', choices=['mnist', 'fashion-mnist', 'celebA'],
-                        help='The name of dataset')
+    parser.add_argument('--dataset', type=str, choices=['mnist'],
+                        help='The name of dataset', required=True)
     parser.add_argument('--epoch', type=int, default=25, help='The number of epochs to run')
     parser.add_argument('--log_dir', type=str, default='logs',
                         help='Directory name to save training logs')
@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--gpu_mode', type=bool, default=False)
+    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--seed', type=int, default=1234)
 
     return check_args(parser.parse_args())
 
@@ -76,7 +78,7 @@ def generate_9_samples(gan):
 			x = x.data.numpy().transpose(0, 2, 3, 1).squeeze()
 
 			plt.subplot(3,3,i+1)
-			plt.imshow(x)
+			plt.imshow(x, cmap='gray')
 			plt.axis('off')
 
 		plt.savefig(os.path.join(save_dir, 'seed{}.png'.format(seed)), bbox_inches='tight')
@@ -186,8 +188,8 @@ def main():
 
     # Applies the operations asked in question 5 a) b) and c)
     generate_9_samples(gan)
-    make_changes_in_latent_space(gan)
-    interpolate_between_two_points(gan)
+    #make_changes_in_latent_space(gan)
+    #interpolate_between_two_points(gan)
 
 if __name__ == '__main__':
     main()

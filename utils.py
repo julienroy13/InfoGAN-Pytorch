@@ -44,11 +44,14 @@ def load_celebA(dir, transform, batch_size, shuffle):
     return data_loader
 
 def print_network(net):
+    # Counts the number of parameters
     num_params = 0
     for param in net.parameters():
         num_params += param.numel()
+    print('\nNETWORK ARCHITECTURE ------------------------')
     print(net)
-    print('Total number of parameters: %d' % num_params)
+    print('Total number of parameters : {}k}'.format(int(num_params/1e3)))
+    print('-----------------------------------------------\n')
 
 def save_images(images, size, image_path):
     return imsave(images, size, image_path)
@@ -105,15 +108,3 @@ def loss_plot(hist, path = 'Train_hist.png', model_name = ''):
     plt.savefig(path)
 
     plt.close()
-
-def initialize_weights(net):
-    for m in net.modules():
-        if isinstance(m, nn.Conv2d):
-            m.weight.data.normal_(0, 0.02)
-            m.bias.data.zero_()
-        elif isinstance(m, nn.ConvTranspose2d):
-            m.weight.data.normal_(0, 0.02)
-            m.bias.data.zero_()
-        elif isinstance(m, nn.Linear):
-            m.weight.data.normal_(0, 0.02)
-            m.bias.data.zero_()

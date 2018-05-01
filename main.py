@@ -12,10 +12,10 @@ def parse_args():
     desc = "Pytorch implementation of GAN collections"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--gan_type', type=str, default='EBGAN',
+    parser.add_argument('--gan_type', type=str,
                         choices=['GAN', 'infoGAN'],
                         help='The type of GAN', required=True)
-    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion-mnist', 'celebA', 'synth', '3Dchairs'],
+    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'synth', '3Dchairs'],
                         help='The name of dataset', required=True)
     parser.add_argument('--epoch', type=int, default=30, help='The number of epochs to run')
     parser.add_argument('--batch_size', type=int, default=64, help='The size of batch')
