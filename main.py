@@ -1,6 +1,7 @@
 # code inspired from : github.com/znxlwm/pytorch-generative-model-collections
 
-import argparse, os
+import argparse
+import os 
 from GAN import GAN
 from infoGAN import infoGAN
 import torch
@@ -11,17 +12,11 @@ def parse_args():
     desc = "Pytorch implementation of GAN collections"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--gan_type', type=str,
-                        choices=['GAN', 'infoGAN'],
-                        help='The type of GAN', required=True)
-    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'synth', '3Dchairs'],
-                        help='The name of dataset', required=True)
-    parser.add_argument('--epoch', type=int, default=30, help='The number of epochs to run')
-    parser.add_argument('--batch_size', type=int, default=64, help='The size of batch')
-    parser.add_argument('--save_dir', type=str, default='models',
-                        help='Directory name to save the model')
-    parser.add_argument('--result_dir', type=str, default='results',
-                        help='Directory name to save the generated images')
+    parser.add_argument('--gan_type', type=str, choices=['GAN', 'infoGAN'], required=True)
+    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'synth', '3Dchairs'], required=True)
+    parser.add_argument('--epoch', type=int, default=30)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--save_dir', type=str, default='models', help='Directory name to save the model')
     parser.add_argument('--lrG', type=float, default=0.0002)
     parser.add_argument('--lrD', type=float, default=0.0002)
     parser.add_argument('--beta1', type=float, default=0.5)
@@ -63,7 +58,7 @@ if __name__ == '__main__':
     if args.gan_type == 'GAN':
         gan = GAN(args)
     elif args.gan_type == 'infoGAN':
-        gan = infoGAN(args, SUPERVISED=False)
+        gan = infoGAN(args)
 
     # trains the model
     gan.train()
