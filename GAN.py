@@ -1,6 +1,9 @@
-# CODE FROM : github.com/znxlwm/pytorch-generative-model-collections
-
-import utils, torch, time, os, pickle
+# code inspired by : github.com/znxlwm/pytorch-generative-model-collections
+import utils
+import torch
+import time
+import os
+import pickle
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -9,83 +12,116 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 class generator(nn.Module):
-    # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-    # Architecture : FC1024_BR-FC7x7x128_BR-(64)4dc2s_BR-(1)4dc2s_S
-    def __init__(self, dataset = 'mnist'):
+    def __init__(self, dataset):
         super(generator, self).__init__()
-        if dataset == 'mnist' or dataset == 'fashion-mnist':
-            self.input_height = 28
-            self.input_width = 28
-            self.input_dim = 62
-            self.output_dim = 1
-        elif dataset == 'celebA':
-            self.input_height = 64
-            self.input_width = 64
-            self.input_dim = 62
-            self.output_dim = 3
+        if dataset == 'mnist':
+            self.latent_dim = 62
+            self.output_height = 28
+            self.output_width = 28
+            self.output_features = 1
 
-        self.fc = nn.Sequential(
-            nn.Linear(self.input_dim, 1024),
+        elif dataset == '3Dchairs':
+            raise NotImplemented
+
+        elif dataset == 'synth':
+            raise NotImplemented
+
+        else:
+            raise Exception('Unsupported dataset')
+
+        # First layers are fully connected
+        self.fc_part = nn.Sequential(
+            nn.Linear(self.latent_dim, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(),
-            nn.Linear(1024, 128 * (self.input_height // 4) * (self.input_width // 4)),
-            nn.BatchNorm1d(128 * (self.input_height // 4) * (self.input_width // 4)),
+            nn.Linear(1024, 128 * (self.output_height // 4) * (self.output_width // 4)),
+            nn.BatchNorm1d(128 * (self.output_height // 4) * (self.output_width // 4)),
             nn.ReLU(),
         )
-        self.deconv = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, 4, 2, 1),
+
+        # Then we switch to deconvolution (transpose convolutions)
+        self.deconv_part = nn.Sequential(
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, self.output_dim, 4, 2, 1),
-            nn.Sigmoid(),
+            nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
+            nn.Sigmoid(), #[0, 1] images
         )
-        utils.initialize_weights(self)
+        
+        self.initialize_weights()
 
     def forward(self, input):
-        x = self.fc(input)
-        x = x.view(-1, 128, (self.input_height // 4), (self.input_width // 4))
-        x = self.deconv(x)
+        # Forwards through first fully connected layers
+        x = self.fc_part(input)
+        
+        # Reshapes into feature maps 4 times smaller than original size
+        x = x.view(-1, 128, (self.output_height // 4), (self.output_width // 4))
+        
+        # Feedforward through deconvolutional part (upsampling)
+        x = self.deconv_part(x)
 
         return x
 
+    def initialize_weights(self):
+        for module in self.modules():
+            module.weight.data.normal_(0, 0.02)
+            module.bias.data.zero_()
+
 class discriminator(nn.Module):
-    # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-    # Architecture : (64)4c2s-(128)4c2s_BL-FC1024_BL-FC1_S
-    def __init__(self, dataset = 'mnist'):
+    def __init__(self, dataset='mnist'):
         super(discriminator, self).__init__()
-        if dataset == 'mnist' or dataset == 'fashion-mnist':
+        if dataset == 'mnist':
             self.input_height = 28
             self.input_width = 28
-            self.input_dim = 1
-            self.output_dim = 1
-        elif dataset == 'celebA':
-            self.input_height = 64
-            self.input_width = 64
-            self.input_dim = 3
+            self.input_features = 1
             self.output_dim = 1
 
-        self.conv = nn.Sequential(
-            nn.Conv2d(self.input_dim, 64, 4, 2, 1),
+        elif dataset == '3Dchairs':
+            raise NotImplemented
+
+        elif dataset == 'synth':
+            raise NotImplemented
+
+        else:
+            raise Exception('Unsupported dataset')
+
+        # First layers are convolutional (subsampling)
+        self.conv_part = nn.Sequential(
+            nn.Conv2d(self.input_features, 64, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 128, 4, 2, 1),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
         )
-        self.fc = nn.Sequential(
+
+        # Then we switch to fully connected before sigmoidal output unit
+        self.fc_part = nn.Sequential(
             nn.Linear(128 * (self.input_height // 4) * (self.input_width // 4), 1024),
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
             nn.Linear(1024, self.output_dim),
             nn.Sigmoid(),
         )
-        utils.initialize_weights(self)
+
+        self.initialize_weights()
 
     def forward(self, input):
-        x = self.conv(input)
+        # Feedforwards through convolutional (subsampling) layers
+        x = self.conv_part(input)
+        
+        # Reshapes as a vector
         x = x.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
-        x = self.fc(x)
+        
+        # Feedforwards through fully connected layers
+        x = self.fc_part(x)
 
         return x
+
+    def initialize_weights(self):
+        for module in self.modules():
+            module.weight.data.normal_(0, 0.02)
+            module.bias.data.zero_()
+
 
 class GAN(object):
     def __init__(self, args, test_only=False):
@@ -102,44 +138,34 @@ class GAN(object):
         self.model_name = args.gan_type
         self.test_only = test_only
         self.gan_type = args.gan_type
+        self.z_dim = 62
 
-        # networks init
+        # Initializes the models and their optimizers
         self.G = generator(self.dataset)
-        if not test_only: self.D = discriminator(self.dataset)
+        utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
-        if not test_only: self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
+        if not test_only: 
+            self.D = discriminator(self.dataset)
+            utils.print_network(self.D)
+            self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
 
+        # Loss function
+        self.BCE_loss = nn.BCELoss()
+
+        # Sends the models of GPU (if defined)
         if self.gpu_mode:
             self.G.cuda(self.gpu_id)
             if not test_only: self.D.cuda(self.gpu_id)
-            self.BCE_loss = nn.BCELoss().cuda(self.gpu_id)
-        else:
-            self.BCE_loss = nn.BCELoss()
+            nn.BCELoss().cuda(self.gpu_id)            
 
-        print('---------- Networks architecture -------------')
-        utils.print_network(self.G)
-        if not test_only: utils.print_network(self.D)
-        print('-----------------------------------------------')
-
+        # Load the dataset
         if not test_only:
-            # load dataset
             if self.dataset == 'mnist':
                 X, Y = utils.load_mnist(args.dataset)
                 dset = TensorDataset(X, Y)
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
-            elif self.dataset == 'fashion-mnist':
-                self.data_loader = DataLoader(
-                    datasets.FashionMNIST('data/fashion-mnist', train=True, download=True, transform=transforms.Compose(
-                        [transforms.ToTensor()])),
-                    batch_size=self.batch_size, shuffle=True)
-            elif self.dataset == 'celebA':
-                self.data_loader = utils.load_celebA('data/celebA', transform=transforms.Compose(
-                    [transforms.CenterCrop(160), transforms.Scale(64), transforms.ToTensor()]), batch_size=self.batch_size,
-                                                     shuffle=True)
-        
-        self.z_dim = 62
 
-        # fixed noise
+        # Creates the random latent vectors
         if self.gpu_mode:
             self.sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)).cuda(self.gpu_id), volatile=True)
         else:
