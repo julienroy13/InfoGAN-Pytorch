@@ -43,7 +43,7 @@ class generator(nn.Module):
 
     def forward(self, z, cont_code, discr_code):
         # Concatenates latent vector and latent codes (continuous and discrete)
-        x = torch.cat([z, cont_code, discr_code], 1)
+        x = torch.cat([z, cont_code, discr_code], dim=1)
         
         # Forwards through first fully connected layers
         x = self.fc_part(x)
@@ -275,10 +275,10 @@ class infoGAN(object):
         self.save()
         
         # Saves the plot of losses for G and D
-        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "InfoGAN", 'curves'), infogan=True)
+        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "infoGAN", "curves.png"), infogan=True)
 
         # Saves samples
-        utils.generate_samples(self, self.z_dim, self.save_dir, self.c_disc_dim, self.c_cont_dim)
+        utils.generate_samples(self, self.z_dim, os.path.join(self.save_dir, self.dataset, "infoGAN"), self.c_cont_dim, self.c_disc_dim)
         
 
     def save(self):
