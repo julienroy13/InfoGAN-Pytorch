@@ -244,7 +244,7 @@ class GAN(object):
         self.save()
         
         # Saves the plot of losses for G and D
-        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves'))
+        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves.png'))
 
         # Saves samples
         utils.generate_samples(self, self.z_dim, save_dir=os.path.join(self.save_dir, self.dataset, "GAN"))
