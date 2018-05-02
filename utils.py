@@ -1,15 +1,13 @@
 import os
+import pdb
 import pickle
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 import numpy as np
-import scipy.misc
-import imageio
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from torchvision import datasets, transforms
-import pdb
 
 def load_mnist(dataset):
     
@@ -49,12 +47,14 @@ def print_network(net):
     print('Total number of parameters : {}k'.format(int(num_params/1e3)))
     print('-----------------------------------------------\n')
 
-def save_loss_plot(train_history, filename):
+def save_loss_plot(train_history, filename, infogan=False):
     plt.figure(figsize=(10,4))
 
     # Defines the plot
     plt.plot(train_history['D_loss'], color="blue", label='D loss')
     plt.plot(train_history['G_loss'], color="orange", label='G loss')
+    if infogan: 
+        plt.plot(train_history['info_loss'], color="pink", label='Info loss')
     plt.title('Training Curves', fontweight='bold')
     plt.xlabel('Training steps')
     plt.ylabel('Loss')
@@ -63,4 +63,26 @@ def save_loss_plot(train_history, filename):
 
     # Saves the figure
     plt.savefig(filename)
+    plt.close()
+
+def generate_samples(gan, z_dim, save_dir, c_cont_dim=None, c_disc_dim=None, seed=1234):
+    torch.manual_seed(seed)
+    gan.G.eval()
+
+    # Creates samples and saves them
+    plt.figure(figsize=(20,20))
+    for i in range(25):
+        if gan.gpu_mode:
+            z = Variable(torch.rand((1, z_dim)).cuda(gan.gpu_id), volatile=True)
+        else:
+            z = Variable(torch.rand((1, z_dim)), volatile=True)
+        
+        x = gan.G(z)
+        x = x.cpu().data.numpy().transpose(0, 2, 3, 1).squeeze()
+
+        plt.subplot(5,5,i+1)
+        plt.imshow(x, cmap='gray')
+        plt.axis('off')
+
+    plt.savefig(os.path.join(save_dir, 'seed{}.png'.format(seed)), bbox_inches='tight')
     plt.close()
