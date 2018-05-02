@@ -159,12 +159,6 @@ class GAN(object):
                 dset = TensorDataset(X, Y)
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
 
-        # Creates the random latent vectors
-        if self.gpu_mode:
-            self.sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)).cuda(self.gpu_id), volatile=True)
-        else:
-            self.sample_z_ = Variable(torch.rand((self.batch_size, self.z_dim)), volatile=True)
-
         # Creates train history dictionnary to record important training indicators
         self.train_history = {}
         self.train_history['D_loss'] = []
@@ -251,6 +245,9 @@ class GAN(object):
         
         # Saves the plot of losses for G and D
         utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves'))
+
+        # Saves samples
+        utils.generate_samples(self, self.z_dim, save_dir=os.path.join(self.save_dir, self.dataset, "GAN"))
 
     def save(self):
         # Defines save directory
