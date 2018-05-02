@@ -1,7 +1,7 @@
 # code inspired from : github.com/znxlwm/pytorch-generative-model-collections
 
 import argparse
-import os 
+import os
 from GAN import GAN
 from infoGAN import infoGAN
 import torch
@@ -12,7 +12,7 @@ def parse_args():
     desc = "Pytorch implementation of GAN collections"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--gan_type', type=str, choices=['GAN', 'infoGAN'], required=True)
+    parser.add_argument('--model', type=str, choices=['GAN', 'infoGAN'], required=True)
     parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'synth', '3Dchairs'], required=True)
     parser.add_argument('--epoch', type=int, default=30)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -29,12 +29,9 @@ def parse_args():
 
 
 def check_args(args):
-    # creates directories if necessary
+    # creates saving directory if necessary
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
-
-    if not os.path.exists(args.result_dir):
-        os.makedirs(args.result_dir)
 
     # makes sure batch_size and epoch are positive
     if args.epoch < 1:
@@ -54,10 +51,10 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    # declare instance for GAN
-    if args.gan_type == 'GAN':
+    # instanciates the model
+    if args.model == 'GAN':
         gan = GAN(args)
-    elif args.gan_type == 'infoGAN':
+    elif args.model == 'infoGAN':
         gan = infoGAN(args)
 
     # trains the model
