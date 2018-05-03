@@ -1,4 +1,3 @@
-# code inspired by : github.com/znxlwm/pytorch-generative-model-collections
 import utils
 import torch
 import time

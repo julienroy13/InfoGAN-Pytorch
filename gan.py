@@ -1,4 +1,3 @@
-# code inspired by : github.com/znxlwm/pytorch-generative-model-collections
 import utils
 import torch
 import time
@@ -124,11 +123,19 @@ class GAN(object):
             self.y_dim = 1
             self.z_dim = 62
 
-        elif dataset == '3Dchairs':
-            raise NotImplemented
+        elif self.dataset == '3Dchairs':
+            self.x_height = 128
+            self.x_width = 128
+            self.x_features = 3
+            self.y_dim = 1
+            self.z_dim = 62
 
-        elif dataset == 'synth':
-            raise NotImplemented
+        elif self.dataset == 'synth':
+            self.x_height = 64
+            self.x_width = 64
+            self.x_features = 1
+            self.y_dim = 1
+            self.z_dim = 62
 
         else:
             raise Exception('Unsupported dataset')
@@ -158,6 +165,14 @@ class GAN(object):
                 X, Y = utils.load_mnist(args.dataset)
                 dset = TensorDataset(X, Y)
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
+
+            elif self.dataset == '3Dchairs':
+                trans = transforms.Compose([transforms.Scale(128), transforms.ToTensor()])
+                self.data_loader = utils.load_3Dchairs(transform=trans, batch_size=self.batch_size)
+
+            elif self.dataset == 'synth':
+                trans = transforms.Compose([transforms.Scale(64), transforms.Grayscale(), transforms.ToTensor()])
+                self.data_loader = utils.load_synth(transform=trans, batch_size=self.batch_size)
 
         # Creates train history dictionnary to record important training indicators
         self.train_history = {}

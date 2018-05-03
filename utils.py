@@ -3,6 +3,7 @@ import pdb
 import pickle
 import torch
 import torch.nn as nn
+from torchvision import datasets, transforms
 from torch.autograd import Variable
 import numpy as np
 import matplotlib
@@ -27,13 +28,17 @@ def load_mnist(dataset):
     Y = torch.from_numpy(Y).type(torch.FloatTensor)
     return X, Y
 
-# WE KEEP THIS FUNCTION (for now) AS A TEMPLATE FOR 3DCHAIRS AND SYNTH DATASETS--------
-def load_celebA(dir, transform, batch_size, shuffle):
-    dset = datasets.ImageFolder(dir, transform)
+def load_3Dchairs(transform, batch_size, shuffle=True):
+    dset = datasets.ImageFolder(os.path.join("data", "3Dchairs"), transform)
     data_loader = torch.utils.data.DataLoader(dset, batch_size, shuffle)
 
     return data_loader
-# -----------------------------------------------------------------------------
+
+def load_synth(transform, batch_size, shuffle=True):
+    dset = datasets.ImageFolder(os.path.join("data", "synth"), transform)
+    data_loader = torch.utils.data.DataLoader(dset, batch_size, shuffle)
+
+    return data_loader
 
 def print_network(net):
     # Counts the number of parameters

@@ -1,9 +1,7 @@
-# code inspired from : github.com/znxlwm/pytorch-generative-model-collections
-
 import argparse
 import os
-from GAN import GAN
-from infoGAN import infoGAN
+from gan import GAN
+from infogan import infoGAN
 import torch
 import numpy as np
 
