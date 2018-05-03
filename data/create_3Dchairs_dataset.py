@@ -5,7 +5,7 @@ import pdb
 # This file also assumes that you have previously placed rendered_chairs.tar
 #    in the InfoGAN-Pytorch/data/raw/ directory and that you have extracted there
 root_dir = os.path.join("raw", "rendered_chairs")
-new_dir = "3Dchairs"
+new_dir = os.path.join("3Dchairs", "imgs")
 if not os.path.exists(new_dir):
 	os.makedirs(new_dir)
 all_chair_folders = os.listdir(root_dir)
