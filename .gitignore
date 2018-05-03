@@ -3,5 +3,7 @@ models/
 results/
 data/mnist/
 data/synth/
+data/3Dchairs/
 data/raw/
 interpolations/
+samples/
