@@ -7,6 +7,10 @@ import pdb
 
 IMAGE_SIZE = 28
 
+# IMPORTANT : this file needs to be run from : InfoGAN-Pytorch/data/
+# This file also assumes that you have previously downloaded the .tar.gz raw files from
+#    Yann Lecun website and placed them in InfoGAN-Pytorch/data/raw/
+
 def extract_data(filename, num_images):
     """Extract the images into a 4D tensor [image index, y, x, channels].
     Values are rescaled from [0, 255] down to [-0.5, 0.5].
