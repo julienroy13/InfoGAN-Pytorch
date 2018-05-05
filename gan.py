@@ -124,15 +124,17 @@ class GAN(object):
             self.z_dim = 62
 
         elif self.dataset == '3Dchairs':
-            self.x_height = 128
-            self.x_width = 128
+            self.im_resize = 256
+            self.x_height = self.im_resize
+            self.x_width = self.im_resize
             self.x_features = 3
             self.y_dim = 1
             self.z_dim = 62
 
         elif self.dataset == 'synth':
-            self.x_height = 128
-            self.x_width = 128
+            self.im_resize = 128
+            self.x_height = self.im_resize
+            self.x_width = self.im_resize
             self.x_features = 1
             self.y_dim = 1
             self.z_dim = 62
@@ -167,11 +169,11 @@ class GAN(object):
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
 
             elif self.dataset == '3Dchairs':
-                trans = transforms.Compose([transforms.Scale(128), transforms.ToTensor()])
+                trans = transforms.Compose([transforms.Scale(self.im_resize), transforms.ToTensor()])
                 self.data_loader = utils.load_3Dchairs(transform=trans, batch_size=self.batch_size)
 
             elif self.dataset == 'synth':
-                trans = transforms.Compose([transforms.Scale(128), transforms.Grayscale(), transforms.ToTensor()])
+                trans = transforms.Compose([transforms.Scale(self.im_resize), transforms.Grayscale(), transforms.ToTensor()])
                 self.data_loader = utils.load_synth(transform=trans, batch_size=self.batch_size)
 
         # Creates train history dictionnary to record important training indicators
