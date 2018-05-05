@@ -131,16 +131,30 @@ class infoGAN(object):
             self.x_width = 28
             self.x_features = 1
             self.y_dim = 1
-            self.c_disc_dim = 10     # categorical distribution (i.e. label)
-            self.c_cont_dim = 2      # gaussian distribution (e.g. rotation, thickness)
+            self.c_disc_dim = 10 
+            self.c_cont_dim = 2   
             self.c_dim = self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
-        elif dataset == '3Dchairs':
-            raise NotImplemented
+        elif self.dataset == '3Dchairs':
+            self.x_height = 128
+            self.x_width = 128
+            self.x_features = 3
+            self.y_dim = 1
+            self.c_disc_dim = 10
+            self.c_cont_dim = 5
+            self.c_dim = self.c_disc_dim + self.c_cont_dim
+            self.z_dim = 62
 
-        elif dataset == 'synth':
-            raise NotImplemented
+        elif self.dataset == 'synth':
+            self.x_height = 128
+            self.x_width = 128
+            self.x_features = 1
+            self.y_dim = 1
+            self.c_disc_dim = 0
+            self.c_cont_dim = 3
+            self.c_dim = self.c_disc_dim + self.c_cont_dim
+            self.z_dim = 62
 
         else:
             raise Exception('Unsupported dataset')
@@ -173,8 +187,16 @@ class infoGAN(object):
         if not test_only:
             if self.dataset == 'mnist':
                 self.data_X, self.data_Y = utils.load_mnist(args.dataset)
-                #dset = TensorDataset(X, Y)
-                #self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
+                dset = TensorDataset(X, Y)
+                self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
+
+            elif self.dataset == '3Dchairs':
+                trans = transforms.Compose([transforms.Scale(128), transforms.ToTensor()])
+                self.data_loader = utils.load_3Dchairs(transform=trans, batch_size=self.batch_size)
+
+            elif self.dataset == 'synth':
+                trans = transforms.Compose([transforms.Scale(128), transforms.Grayscale(), transforms.ToTensor()])
+                self.data_loader = utils.load_synth(transform=trans, batch_size=self.batch_size)
 
         # Creates train history dictionnary to record important training indicators
         self.train_history = {}
