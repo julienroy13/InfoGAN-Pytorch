@@ -147,16 +147,16 @@ class MODEL(object):
             self.z_dim = 62
 
         elif self.dataset == '3Dchairs':
-            self.im_resize = 128
+            self.im_resize = 64
             self.x_height = self.im_resize
             self.x_width = self.im_resize
             self.x_features = 1
             self.y_dim = 1
-            self.n_disc_code = 4
+            self.n_disc_code = 3
             self.c_disc_dim = 20
             self.c_cont_dim = 1
             self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
-            self.z_dim = 62
+            self.z_dim = 128
 
         elif self.dataset == 'synth':
             self.im_resize = 128
