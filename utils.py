@@ -10,11 +10,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# ==== TO BE REMOVED ==========
-import scipy.misc
-import imageio
-# =============================
-
 def load_mnist(dataset):
     
     # Loads mnist data from pkl file
@@ -75,7 +70,7 @@ def save_loss_plot(train_history, filename, infogan=False):
     plt.savefig(filename)
     plt.close()
 
-def generate_samples(gan, z_dim, filename, c_cont_dim=0, c_disc_dim=0):
+def generate_samples(gan, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_dim=0):
     gan.G.eval()
 
     # Creates samples and saves them
@@ -85,6 +80,8 @@ def generate_samples(gan, z_dim, filename, c_cont_dim=0, c_disc_dim=0):
         z = torch.rand((1, z_dim))
         if c_disc_dim != 0: # for infogan
             c_disc = torch.from_numpy(np.random.multinomial(1, c_disc_dim * [float(1.0 / c_disc_dim)], size=[1])).type(torch.FloatTensor)
+            for i in range(n_disc_code-1):
+                c_disc = torch.cat([c_disc, torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)], dim=1)
         if c_cont_dim != 0: # for infogan
             c_cont = torch.from_numpy(np.random.uniform(-1, 1, size=(1, c_cont_dim))).type(torch.FloatTensor)
 
@@ -115,64 +112,4 @@ def generate_samples(gan, z_dim, filename, c_cont_dim=0, c_disc_dim=0):
         plt.axis('off')
 
     plt.savefig(filename, bbox_inches='tight')
-    plt.close()
-
-
-
-# ====================== TO BE DELETED AFTER REFACTORING ===========================================
-
-def save_images(images, size, image_path):
-    return imsave(images, size, image_path)
-
-def imsave(images, size, path):
-    image = np.squeeze(merge(images, size))
-    return scipy.misc.imsave(path, image)
-
-def merge(images, size):
-    h, w = images.shape[1], images.shape[2]
-    if (images.shape[3] in (3,4)):
-        c = images.shape[3]
-        img = np.zeros((h * size[0], w * size[1], c))
-        for idx, image in enumerate(images):
-            i = idx % size[1]
-            j = idx // size[1]
-            img[j * h:j * h + h, i * w:i * w + w, :] = image
-        return img
-    elif images.shape[3]==1:
-        img = np.zeros((h * size[0], w * size[1]))
-        for idx, image in enumerate(images):
-            i = idx % size[1]
-            j = idx // size[1]
-            img[j * h:j * h + h, i * w:i * w + w] = image[:,:,0]
-        return img
-    else:
-        raise ValueError('in merge(images,size) images parameter ''must have dimensions: HxW or HxWx3 or HxWx4')
-
-def generate_animation(path, num):
-    images = []
-    for e in range(num):
-        img_name = path + '_epoch%03d' % (e+1) + '.png'
-        images.append(imageio.imread(img_name))
-    imageio.mimsave(path + '_generate_animation.gif', images, fps=5)
-
-def loss_plot(hist, path = 'Train_hist.png', model_name = ''):
-    x = range(len(hist['D_loss']))
-
-    y1 = hist['D_loss']
-    y2 = hist['G_loss']
-
-    plt.plot(x, y1, label='D_loss')
-    plt.plot(x, y2, label='G_loss')
-
-    plt.xlabel('Iter')
-    plt.ylabel('Loss')
-
-    plt.legend(loc=4)
-    plt.grid(True)
-    plt.tight_layout()
-
-    path = os.path.join(path, model_name + '_loss.png')
-
-    plt.savefig(path)
-
     plt.close()

@@ -133,9 +133,10 @@ class infoGAN(object):
             self.x_width = 28
             self.x_features = 1
             self.y_dim = 1
+            self.n_disc_code = 1
             self.c_disc_dim = 10 
             self.c_cont_dim = 2   
-            self.c_dim = self.c_disc_dim + self.c_cont_dim
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         elif self.dataset == '3Dchairs':
@@ -144,9 +145,10 @@ class infoGAN(object):
             self.x_width = self.im_resize
             self.x_features = 3
             self.y_dim = 1
+            self.n_disc_code = 4
             self.c_disc_dim = 20
             self.c_cont_dim = 1
-            self.c_dim = self.c_disc_dim + self.c_cont_dim
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         elif self.dataset == 'synth':
@@ -155,9 +157,10 @@ class infoGAN(object):
             self.x_width = self.im_resize
             self.x_features = 1
             self.y_dim = 1
+            self.n_disc_code = 1
             self.c_disc_dim = 10
             self.c_cont_dim = 3
-            self.c_dim = self.c_disc_dim + self.c_cont_dim
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         else:
@@ -168,7 +171,7 @@ class infoGAN(object):
         utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         
-        self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.c_disc_dim, self.c_cont_dim)
+        self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim)
         utils.print_network(self.D)
         self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
         
@@ -242,6 +245,8 @@ class infoGAN(object):
 
                 # Creates a minibatch of discrete and continuous codes
                 c_disc_ = torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)
+                for i in range(self.n_disc_code-1):
+                    c_disc_ = torch.cat([c_disc_, torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)], dim=1)
                 c_cont_ = torch.from_numpy(np.random.uniform(-1, 1, size=(self.batch_size, self.c_cont_dim))).type(torch.FloatTensor)
 
                 # Convert to Variables (sends to GPU if needed)
@@ -301,7 +306,7 @@ class infoGAN(object):
             self.train_history['per_epoch_time'].append(time.time() - epoch_start_time)
 
             # Saves samples
-            utils.generate_samples(self, self.z_dim, os.path.join(self.save_dir, "epoch{}.png".format(epoch)), self.c_cont_dim, self.c_disc_dim)
+            utils.generate_samples(self, self.z_dim, os.path.join(self.save_dir, "epoch{}.png".format(epoch)), self.c_cont_dim, self.n_disc_code, self.c_disc_dim)
 
         self.train_history['total_time'].append(time.time() - start_time)
         print("Avg one epoch time: %.2f, total %d epochs time: %.2f" % (np.mean(self.train_history['per_epoch_time']),
