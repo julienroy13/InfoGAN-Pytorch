@@ -10,6 +10,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import matplotlib.pyplot as plt
 from torch.autograd import Variable
+from torch.utils.data import DataLoader, TensorDataset
+from torchvision import datasets, transforms
 
 class generator(nn.Module):
     def __init__(self, latent_dim, output_height, output_width, output_features):
@@ -151,7 +153,7 @@ class infoGAN(object):
             self.x_width = 128
             self.x_features = 1
             self.y_dim = 1
-            self.c_disc_dim = 0
+            self.c_disc_dim = 10
             self.c_cont_dim = 3
             self.c_dim = self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
@@ -186,7 +188,7 @@ class infoGAN(object):
         # Load the dataset
         if not test_only:
             if self.dataset == 'mnist':
-                self.data_X, self.data_Y = utils.load_mnist(args.dataset)
+                X, Y = utils.load_mnist(args.dataset)
                 dset = TensorDataset(X, Y)
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
 
@@ -227,24 +229,30 @@ class infoGAN(object):
         for epoch in range(self.epoch):
             self.G.train() # sets generator in train mode
             epoch_start_time = time.time()
-            for step in range(len(self.data_X) // self.batch_size):
-                x_ = self.data_X[step*self.batch_size:(step+1)*self.batch_size]
+            
+            # For each minibatch returned by the data_loader
+            for step, (x_, _) in enumerate(self.data_loader):
+                if step == self.data_loader.dataset.__len__() // self.batch_size:
+                    break
+
+                # Creates a minibatch of latent vectors
                 z_ = torch.rand((self.batch_size, self.z_dim))
 
-                y_disc_ = torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)
-                y_cont_ = torch.from_numpy(np.random.uniform(-1, 1, size=(self.batch_size, self.c_cont_dim))).type(torch.FloatTensor)
+                # Creates a minibatch of discrete and continuous codes
+                c_disc_ = torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)
+                c_cont_ = torch.from_numpy(np.random.uniform(-1, 1, size=(self.batch_size, self.c_cont_dim))).type(torch.FloatTensor)
 
                 # Convert to Variables (sends to GPU if needed)
                 if self.gpu_mode:
                     x_ = Variable(x_.cuda(self.gpu_id))
                     z_ = Variable(z_.cuda(self.gpu_id))
-                    y_disc_ = Variable(y_disc_.cuda(self.gpu_id))
-                    y_cont_ = Variable(y_cont_.cuda(self.gpu_id))
+                    c_disc_ = Variable(c_disc_.cuda(self.gpu_id))
+                    c_cont_ = Variable(c_cont_.cuda(self.gpu_id))
                 else:
                     x_ = Variable(x_)
                     z_ = Variable(z_)
-                    y_disc_ = Variable(y_disc_)
-                    y_cont_ = Variable(y_cont_)
+                    c_disc_ = Variable(c_disc_)
+                    c_cont_ = Variable(c_cont_)
 
                 # update D network
                 self.D_optimizer.zero_grad()
@@ -252,7 +260,7 @@ class infoGAN(object):
                 D_real, _, _ = self.D(x_)
                 D_real_loss = self.BCE_loss(D_real, self.y_real_)
 
-                G_ = self.G(z_, y_cont_, y_disc_)
+                G_ = self.G(z_, c_cont_, c_disc_)
                 D_fake, _, _ = self.D(G_)
                 D_fake_loss = self.BCE_loss(D_fake, self.y_fake_)
 
@@ -265,7 +273,7 @@ class infoGAN(object):
                 # update G network
                 self.G_optimizer.zero_grad()
 
-                G_ = self.G(z_, y_cont_, y_disc_)
+                G_ = self.G(z_, c_cont_, c_disc_)
                 D_fake, D_cont, D_disc = self.D(G_)
 
                 G_loss = self.BCE_loss(D_fake, self.y_real_)
@@ -275,8 +283,8 @@ class infoGAN(object):
                 self.G_optimizer.step()
 
                 # information loss
-                disc_loss = self.CE_loss(D_disc, torch.max(y_disc_, 1)[1])
-                cont_loss = self.MSE_loss(D_cont, y_cont_)
+                disc_loss = self.CE_loss(D_disc, torch.max(c_disc_, 1)[1])
+                cont_loss = self.MSE_loss(D_cont, c_cont_)
                 info_loss = disc_loss + cont_loss
                 self.train_history['info_loss'].append(info_loss.data[0])
 
@@ -286,7 +294,7 @@ class infoGAN(object):
                 # Prints training info every 100 steps
                 if ((step + 1) % 100) == 0:
                     print("Epoch: [{:2d}] [{:4d}/{:4d}] D_loss: {:.8f}, G_loss: {:.8f}, info_loss: {:.8f}".format(
-                          (epoch + 1), (step + 1), len(self.data_X) // self.batch_size, D_loss.data[0], G_loss.data[0], info_loss.data[0]))
+                          (epoch + 1), (step + 1), self.data_loader.dataset.__len__() // self.batch_size, D_loss.data[0], G_loss.data[0], info_loss.data[0]))
 
             self.train_history['per_epoch_time'].append(time.time() - epoch_start_time)
 
