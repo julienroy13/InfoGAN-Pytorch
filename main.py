@@ -2,8 +2,6 @@ import argparse
 import os
 from model import MODEL
 from train import train
-from gan import GAN
-from infogan import infoGAN
 import torch
 import numpy as np
 
