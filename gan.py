@@ -124,7 +124,7 @@ class GAN(object):
             self.z_dim = 62
 
         elif self.dataset == '3Dchairs':
-            self.im_resize = 256
+            self.im_resize = 128
             self.x_height = self.im_resize
             self.x_width = self.im_resize
             self.x_features = 3
