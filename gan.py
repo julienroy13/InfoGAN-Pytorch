@@ -108,8 +108,8 @@ class GAN(object):
     def __init__(self, args, test_only=False):
         self.epoch = args.epoch
         self.batch_size = args.batch_size
-        self.save_dir = args.save_dir
         self.dataset = args.dataset
+        self.save_dir = os.path.join(args.save_dir, self.dataset, "GAN")
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
         self.test_only = test_only
@@ -252,6 +252,9 @@ class GAN(object):
 
             self.train_history['per_epoch_time'].append(time.time() - epoch_start_time)
 
+            # Saves samples
+            utils.generate_samples(self, self.z_dim, os.path.join(self.save_dir, "epoch{}.png".format(epoch)))
+
         self.train_history['total_time'].append(time.time() - start_time)
         print("Avg one epoch time: %.2f, total %d epochs time: %.2f" % (np.mean(self.train_history['per_epoch_time']),
               self.epoch, self.train_history['total_time'][0]))
@@ -263,29 +266,20 @@ class GAN(object):
         # Saves the plot of losses for G and D
         utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves.png'))
 
-        # Saves samples
-        utils.generate_samples(self, self.z_dim, save_dir=os.path.join(self.save_dir, self.dataset, "GAN"))
-
     def save(self):
-        # Defines save directory
-        save_dir = os.path.join(self.save_dir, self.dataset, "GAN")
-
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
         # Saves the models
-        torch.save(self.G.state_dict(), os.path.join(save_dir, "GAN" + '_G.pkl'))
-        torch.save(self.D.state_dict(), os.path.join(save_dir, "GAN" + '_D.pkl'))
+        torch.save(self.G.state_dict(), os.path.join(self.save_dir, "GAN" + '_G.pkl'))
+        torch.save(self.D.state_dict(), os.path.join(self.save_dir, "GAN" + '_D.pkl'))
 
         # Saves the train history
-        with open(os.path.join(save_dir, "GAN" + '_history.pkl'), 'wb') as f:
+        with open(os.path.join(self.save_dir, "GAN" + '_history.pkl'), 'wb') as f:
             pickle.dump(self.train_history, f)
 
     def load(self):
-        # Defines save directory
-        save_dir = os.path.join(self.save_dir, self.dataset, "GAN")
-
         # Loads the necessary models
-        self.G.load_state_dict(torch.load(os.path.join(save_dir, "GAN" + '_G.pkl')))
+        self.G.load_state_dict(torch.load(os.path.join(self.save_dir, "GAN" + '_G.pkl')))
         if not self.test_only: 
-            self.D.load_state_dict(torch.load(os.path.join(save_dir, "GAN" + '_D.pkl')))
+            self.D.load_state_dict(torch.load(os.path.join(self.save_dir, "GAN" + '_D.pkl')))
