@@ -4,6 +4,7 @@ import torch
 from torch.autograd import Variable
 import numpy as np
 import utils
+import pdb
 
 def train(model):
     # Checks what kind of model it is training
@@ -90,8 +91,10 @@ def train(model):
             # information loss
             if is_infogan:
                 disc_loss = 0
-                for ce_loss in model.CE_losses:
-                    disc_loss += ce_loss(D_disc, torch.max(c_disc_, 1)[1])
+                for i, ce_loss in enumerate(model.CE_losses):
+                    i0 = i*model.c_disc_dim
+                    i1 = (i+1)*model.c_disc_dim
+                    disc_loss += ce_loss(D_disc[:, i0:i1], torch.max(c_disc_[:, i0:i1], 1)[1])
                 cont_loss = model.MSE_loss(D_cont, c_cont_)
                 info_loss = disc_loss + cont_loss
                 model.train_history['info_loss'].append(info_loss.data[0])
