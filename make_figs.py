@@ -94,7 +94,7 @@ def generate_figure1(model, filename):
                 c_disc = Variable(c_disc, volatile=True)
 
             # Forward propagation
-            x = model.G(z, c_cont, c_disc)
+            x = model.G(z, c_cont, c_disc, model.dataset)
 
             # Reshapes dimensions and convert to ndarray
             x = x.cpu().data.numpy().transpose(0, 2, 3, 1).squeeze()

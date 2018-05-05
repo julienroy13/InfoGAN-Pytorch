@@ -14,35 +14,50 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 class generator(nn.Module):
-    def __init__(self, latent_dim, output_height, output_width, output_features):
+    def __init__(self, latent_dim, output_height, output_width, output_features, dataset):
         super(generator, self).__init__()
         self.latent_dim = latent_dim
         self.output_height = output_height
         self.output_width = output_width
         self.output_features = output_features
 
-        # First layers are fully connected
-        self.fc_part = nn.Sequential(
-            nn.Linear(self.latent_dim, 1024),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            nn.Linear(1024, 128 * (self.output_height // 4) * (self.output_width // 4)),
-            nn.BatchNorm1d(128 * (self.output_height // 4) * (self.output_width // 4)),
-            nn.ReLU(),
-        )
+        if dataset == "mnist":
+            # First layers are fully connected
+            self.fc_part = nn.Sequential(
+                nn.Linear(self.latent_dim, 1024), nn.BatchNorm1d(1024), nn.ReLU(),
+                nn.Linear(1024, 128 * 7 * 7), nn.BatchNorm1d(128 * 7 * 7), nn.ReLU(),
+            )
 
-        # Then we switch to deconvolution (transpose convolutions)
-        self.deconv_part = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
-            nn.Sigmoid(), #[0, 1] images
-        )
+            # Then we switch to deconvolution (transpose convolutions)
+            self.deconv_part = nn.Sequential(
+                nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+                nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
+                nn.Sigmoid(), #[0, 1] images
+            )
+
+        elif dataset == "3Dchairs":
+            # First layers are fully connected
+            self.fc_part = nn.Sequential(
+                nn.Linear(self.latent_dim, 1024), nn.BatchNorm1d(1024), nn.ReLU(),
+                nn.Linear(1024, 256 * 8 * 8), nn.BatchNorm1d(256 * 8 * 8), nn.ReLU(),
+            )
+
+            # Then we switch to deconvolution (transpose convolutions)
+            self.deconv_part = nn.Sequential(
+                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+                nn.ConvTranspose2d(256, 128, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+                nn.ConvTranspose2d(128, 64, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+                nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
+                nn.Sigmoid(), #[0, 1] images
+            )
+
+        else:
+            raise NotImplemented
         
         self.initialize_weights()
 
-    def forward(self, z, cont_code, discr_code):
+    def forward(self, z, cont_code, discr_code, dataset):
         # Concatenates latent vector and latent codes (continuous and discrete)
         x = torch.cat([z, cont_code, discr_code], dim=1)
         
@@ -50,7 +65,12 @@ class generator(nn.Module):
         x = self.fc_part(x)
         
         # Reshapes into feature maps 4 times smaller than original size
-        x = x.view(-1, 128, (self.output_height // 4), (self.output_width // 4))
+        if dataset == "mnist":
+            x = x.view(-1, 128, 7, 7)
+        elif dataset == "3Dchairs":
+            x = x.view(-1, 256, 8, 8)
+        else:
+            raise NotImplemented
         
         # Feedforward through deconvolutional part (upsampling)
         x = self.deconv_part(x)
@@ -64,7 +84,7 @@ class generator(nn.Module):
                 module.bias.data.zero_()
 
 class discriminator(nn.Module):
-    def __init__(self, input_height, input_width, input_features, output_dim, len_discrete_code, len_continuous_code):
+    def __init__(self, input_height, input_width, input_features, output_dim, len_discrete_code, len_continuous_code, dataset):
         super(discriminator, self).__init__()
         self.input_height = input_height
         self.input_width = input_width
@@ -73,42 +93,61 @@ class discriminator(nn.Module):
         self.len_discrete_code = len_discrete_code
         self.len_continuous_code = len_continuous_code
 
-        # First layers are convolutional (subsampling)
-        self.conv_part = nn.Sequential(
-            nn.Conv2d(self.input_features, 64, kernel_size=4, stride=2, padding=1),
-            nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
-        )
+        if dataset == "mnist":
+            # First layers are convolutional (subsampling)
+            self.conv_part = nn.Sequential(
+                nn.Conv2d(self.input_features, 64, kernel_size=4, stride=2, padding=1), nn.LeakyReLU(0.2),
+                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(128), nn.LeakyReLU(0.2),
+            )
 
-        # Then we switch to fully connected before sigmoidal output unit
-        self.fc_part = nn.Sequential(
-            nn.Linear(128 * (self.input_height // 4) * (self.input_width // 4), 1024),
-            nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.2),
-            nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
-            #nn.Sigmoid(), MODIF
-        )
+            # Then we switch to fully connected before sigmoidal output unit
+            self.fc_part = nn.Sequential(
+                nn.Linear(128 * 7 * 7, 1024), nn.BatchNorm1d(1024), nn.LeakyReLU(0.2),
+                nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
+            )
+
+        elif dataset == "3Dchairs":
+            # First layers are convolutional (subsampling)
+            self.conv_part = nn.Sequential(
+                nn.Conv2d(self.input_features, 64, kernel_size=4, stride=2, padding=1), nn.LeakyReLU(0.2),
+                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(128), nn.LeakyReLU(0.2),
+                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+                nn.Conv2d(256, 256, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+                nn.Conv2d(256, 256, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(256), nn.LeakyReLU(0.2),
+            )
+
+            # Then we switch to fully connected before sigmoidal output unit
+            self.fc_part = nn.Sequential(
+                nn.Linear(256 * 8 * 8, 1024), nn.BatchNorm1d(1024), nn.LeakyReLU(0.2),
+                nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
+            )
+
+        else:
+            raise NotImplemented
         
         self.initialize_weights()
 
-    def forward(self, x):
+    def forward(self, x, dataset):
         # Feedforwards through convolutional (subsampling) layers
         y = self.conv_part(x)
 
         # Reshapes as a vector
-        y = y.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
+        if dataset == "mnist":
+            y = y.view(-1, 128 * 7 * 7)
+        elif dataset == "3Dchairs":
+            y = y.view(-1, 256 * 8 * 8)
+        else:
+            raise NotImplemented
 
         # Feedforwards through fully connected layers
         y = self.fc_part(y)
 
         # D output
-        a = F.sigmoid(y[:, 0]) # MODIF
+        a = F.sigmoid(y[:, 0])
 
         # Q outputs
         b = y[:, 1:1+self.len_continuous_code] # continuous codes
-        c = F.softmax(y[:, 1+self.len_continuous_code:])  # discrete codes (MODIF)
+        c = F.softmax(y[:, 1+self.len_continuous_code:])  # discrete codes
 
         return a, b, c
 
@@ -174,12 +213,12 @@ class MODEL(object):
             raise Exception('Unsupported dataset')
 
         # Initializes the models and their optimizers
-        self.G = generator(self.z_dim + self.c_dim, self.x_height, self.x_width, self.x_features)
+        self.G = generator(self.z_dim + self.c_dim, self.x_height, self.x_width, self.x_features, self.dataset)
         utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         
         if not test_only:
-            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim)
+            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim, self.dataset)
             utils.print_network(self.D)
             self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
         

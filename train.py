@@ -63,11 +63,11 @@ def train(model):
             # update D network
             model.D_optimizer.zero_grad()
 
-            D_real, _, _ = model.D(x_)
+            D_real, _, _ = model.D(x_, model.dataset)
             D_real_loss = model.BCE_loss(D_real, y_real_)
 
-            G_ = model.G(z_, c_cont_, c_disc_)
-            D_fake, _, _ = model.D(G_)
+            G_ = model.G(z_, c_cont_, c_disc_, model.dataset)
+            D_fake, _, _ = model.D(G_, model.dataset)
             D_fake_loss = model.BCE_loss(D_fake, y_fake_)
 
             D_loss = D_real_loss + D_fake_loss
@@ -79,8 +79,8 @@ def train(model):
             # update G network
             model.G_optimizer.zero_grad()
 
-            G_ = model.G(z_, c_cont_, c_disc_)
-            D_fake, D_cont, D_disc = model.D(G_)
+            G_ = model.G(z_, c_cont_, c_disc_, model.dataset)
+            D_fake, D_cont, D_disc = model.D(G_, model.dataset)
 
             G_loss = model.BCE_loss(D_fake, y_real_)
             model.train_history['G_loss'].append(G_loss.data[0])
