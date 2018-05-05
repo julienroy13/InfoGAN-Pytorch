@@ -10,7 +10,7 @@ def parse_args():
     desc = "Pytorch implementation of GAN collections"
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument('--model', type=str, choices=['GAN', 'infoGAN'], required=True)
+    parser.add_argument('--model_type', type=str, choices=['GAN', 'infoGAN'], required=True)
     parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'synth', '3Dchairs'], required=True)
     parser.add_argument('--epoch', type=int, default=30)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -50,10 +50,10 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # instanciates the model
-    if args.model == 'GAN':
-        gan = GAN(args)
-    elif args.model == 'infoGAN':
-        gan = infoGAN(args)
+    if args.model_type == 'GAN':
+        model = GAN(args)
+    elif args.model_type == 'infoGAN':
+        model = infoGAN(args)
 
     # trains the model
-    gan.train()
+    model.train()

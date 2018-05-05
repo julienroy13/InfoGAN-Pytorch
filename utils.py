@@ -70,8 +70,8 @@ def save_loss_plot(train_history, filename, infogan=False):
     plt.savefig(filename)
     plt.close()
 
-def generate_samples(gan, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_dim=0):
-    gan.G.eval()
+def generate_samples(model, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_dim=0):
+    model.G.eval()
 
     # Creates samples and saves them
     plt.figure(figsize=(20,20))
@@ -86,11 +86,11 @@ def generate_samples(gan, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_d
             c_cont = torch.from_numpy(np.random.uniform(-1, 1, size=(1, c_cont_dim))).type(torch.FloatTensor)
 
         # Converts to Variable (sends to GPU if necessary)
-        if gan.gpu_mode:
-            z = Variable(z.cuda(gan.gpu_id), volatile=True)
+        if model.gpu_mode:
+            z = Variable(z.cuda(model.gpu_id), volatile=True)
             if c_disc_dim != 0 and c_cont_dim != 0:
-                c_disc = Variable(c_disc.cuda(gan.gpu_id), volatile=True)
-                c_cont = Variable(c_cont.cuda(gan.gpu_id), volatile=True)
+                c_disc = Variable(c_disc.cuda(model.gpu_id), volatile=True)
+                c_cont = Variable(c_cont.cuda(model.gpu_id), volatile=True)
         else:
             z = Variable(z, volatile=True)
             if c_disc_dim != 0 and c_cont_dim != 0:
@@ -99,9 +99,9 @@ def generate_samples(gan, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_d
         
         # Forward propagation
         if c_disc_dim == 0 and c_cont_dim == 0:
-            x = gan.G(z)
+            x = model.G(z)
         elif c_disc_dim != 0 and c_cont_dim != 0:
-            x = gan.G(z, c_cont, c_disc)
+            x = model.G(z, c_cont, c_disc)
 
         # Reshapes dimensions and convert to ndarray
         x = x.cpu().data.numpy().transpose(0, 2, 3, 1).squeeze()
