@@ -89,7 +89,9 @@ def train(model):
 
             # information loss
             if is_infogan:
-                disc_loss = model.CE_loss(D_disc, torch.max(c_disc_, 1)[1])
+                disc_loss = 0
+                for ce_loss in model.CE_losses:
+                    disc_loss += ce_loss(D_disc, torch.max(c_disc_, 1)[1])
                 cont_loss = model.MSE_loss(D_cont, c_cont_)
                 info_loss = disc_loss + cont_loss
                 model.train_history['info_loss'].append(info_loss.data[0])
@@ -99,8 +101,12 @@ def train(model):
 
             # Prints training info every 100 steps
             if ((step + 1) % 100) == 0:
-                print("Epoch: [{:2d}] [{:4d}/{:4d}] D_loss: {:.8f}, G_loss: {:.8f}, info_loss: {:.8f}".format(
-                      (epoch + 1), (step + 1), model.data_loader.dataset.__len__() // model.batch_size, D_loss.data[0], G_loss.data[0], info_loss.data[0]))
+                if is_infogan:
+                    print("Epoch: [{:2d}] [{:4d}/{:4d}] D_loss: {:.8f}, G_loss: {:.8f}, info_loss: {:.8f}".format(
+                          (epoch + 1), (step + 1), model.data_loader.dataset.__len__() // model.batch_size, D_loss.data[0], G_loss.data[0], info_loss.data[0]))
+                else:
+                    print("Epoch: [{:2d}] [{:4d}/{:4d}] D_loss: {:.8f}, G_loss: {:.8f}".format(
+                              (epoch + 1), (step + 1), model.data_loader.dataset.__len__() // model.batch_size, D_loss.data[0], G_loss.data[0]))
 
         model.train_history['per_epoch_time'].append(time.time() - epoch_start_time)
 

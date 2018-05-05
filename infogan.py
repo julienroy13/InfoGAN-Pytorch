@@ -88,7 +88,7 @@ class discriminator(nn.Module):
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
             nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
-            nn.Sigmoid(),
+            #nn.Sigmoid(), MODIF
         )
         
         self.initialize_weights()
@@ -108,7 +108,7 @@ class discriminator(nn.Module):
 
         # Q outputs
         b = y[:, 1:1+self.len_continuous_code] # continuous codes
-        c = y[:, 1+self.len_continuous_code:]  # discrete codes
+        c = F.softmax(y[:, 1+self.len_continuous_code:])  # discrete codes (MODIF)
 
         return a, b, c
 
@@ -120,13 +120,14 @@ class discriminator(nn.Module):
 
 class infoGAN(object):
     def __init__(self, args, test_only=False):
-        self.model_type = args.model_type
+        self.model_type = "infoGAN"
         self.epoch = args.epoch
         self.batch_size = args.batch_size
         self.dataset = args.dataset
-        self.save_dir = os.path.join(args.save_dir, self.dataset, "infoGAN")
+        self.save_dir = os.path.join(args.save_dir, self.dataset, self.model_type)
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
+        self.test_only = test_only
 
         # Defines input/output dimensions
         if self.dataset == 'mnist':
@@ -172,24 +173,28 @@ class infoGAN(object):
         utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         
-        self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim)
-        utils.print_network(self.D)
-        self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
+        if not test_only:
+            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim)
+            utils.print_network(self.D)
+            self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
         
         self.info_optimizer = optim.Adam(itertools.chain(self.G.parameters(), self.D.parameters()), lr=args.lrD, betas=(args.beta1, args.beta2))
 
         # Loss functions
         self.BCE_loss = nn.BCELoss()
-        self.CE_loss = nn.CrossEntropyLoss()
         self.MSE_loss = nn.MSELoss()
+        self.CE_losses = []
+        for i in range(self.n_disc_code):
+            self.CE_losses.append(nn.CrossEntropyLoss())
 
         # Sends the models of GPU (if defined)
         if self.gpu_mode:
             self.G.cuda(self.gpu_id)
-            self.D.cuda(self.gpu_id)
+            if not test_only: self.D.cuda(self.gpu_id)
             self.BCE_loss.cuda(self.gpu_id)
-            self.CE_loss.cuda(self.gpu_id)
             self.MSE_loss.cuda(self.gpu_id)
+            for ce_loss in self.CE_losses:
+                ce_loss.cuda(self.gpu_id)
 
         # Load the dataset
         if not test_only:
@@ -214,6 +219,7 @@ class infoGAN(object):
         self.train_history['per_epoch_time'] = []
         self.train_history['total_time'] = []
 
+    """
     def train(self):
         # Makes sure we have a dir to save the model and training info
         if not os.path.exists(self.save_dir):
@@ -320,14 +326,14 @@ class infoGAN(object):
         # Saves the plot of losses for G and D
         utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, "curves.png"), infogan=True)
         
-
+    """
     def save(self):
-        torch.save(self.G.state_dict(), os.path.join(self.save_dir, "infoGAN" + '_G.pkl'))
-        torch.save(self.D.state_dict(), os.path.join(self.save_dir, "infoGAN" + '_D.pkl'))
+        torch.save(self.G.state_dict(), os.path.join(self.save_dir, self.model_type + '_G.pkl'))
+        torch.save(self.D.state_dict(), os.path.join(self.save_dir, self.model_type + '_D.pkl'))
 
-        with open(os.path.join(self.save_dir, "infoGAN" + '_history.pkl'), 'wb') as f:
+        with open(os.path.join(self.save_dir, self.model_type + '_history.pkl'), 'wb') as f:
             pickle.dump(self.train_history, f)
 
     def load(self):
-        self.G.load_state_dict(torch.load(os.path.join(self.save_dir, "infoGAN" + '_G.pkl')))
-        self.D.load_state_dict(torch.load(os.path.join(self.save_dir, "infoGAN" + '_D.pkl')))
+        self.G.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_G.pkl')))
+        self.D.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_D.pkl')))

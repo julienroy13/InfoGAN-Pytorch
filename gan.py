@@ -5,6 +5,7 @@ import os
 import pickle
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader, TensorDataset
@@ -39,9 +40,12 @@ class generator(nn.Module):
         
         self.initialize_weights()
 
-    def forward(self, z):
+    def forward(self, z, cont_code, discr_code):
+        # Concatenates latent vector and latent codes (continuous and discrete)
+        x = torch.cat([z, cont_code, discr_code], dim=1)
+        
         # Forwards through first fully connected layers
-        x = self.fc_part(z)
+        x = self.fc_part(x)
         
         # Reshapes into feature maps 4 times smaller than original size
         x = x.view(-1, 128, (self.output_height // 4), (self.output_width // 4))
@@ -58,12 +62,14 @@ class generator(nn.Module):
                 module.bias.data.zero_()
 
 class discriminator(nn.Module):
-    def __init__(self, input_height, input_width, input_features, output_dim):
+    def __init__(self, input_height, input_width, input_features, output_dim, len_discrete_code, len_continuous_code):
         super(discriminator, self).__init__()
         self.input_height = input_height
         self.input_width = input_width
         self.input_features = input_features
         self.output_dim = output_dim
+        self.len_discrete_code = len_discrete_code
+        self.len_continuous_code = len_continuous_code
 
         # First layers are convolutional (subsampling)
         self.conv_part = nn.Sequential(
@@ -79,23 +85,30 @@ class discriminator(nn.Module):
             nn.Linear(128 * (self.input_height // 4) * (self.input_width // 4), 1024),
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
-            nn.Linear(1024, self.output_dim),
-            nn.Sigmoid(),
+            nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
+            #nn.Sigmoid(), MODIF
         )
-
+        
         self.initialize_weights()
 
     def forward(self, x):
         # Feedforwards through convolutional (subsampling) layers
         y = self.conv_part(x)
-        
+
         # Reshapes as a vector
         y = y.view(-1, 128 * (self.input_height // 4) * (self.input_width // 4))
-        
+
         # Feedforwards through fully connected layers
         y = self.fc_part(y)
 
-        return y
+        # D output
+        a = F.sigmoid(y[:, 0]) # MODIF
+
+        # Q outputs
+        b = y[:, 1:1+self.len_continuous_code] # continuous codes
+        c = F.softmax(y[:, 1+self.len_continuous_code:])  # discrete codes (MODIF)
+
+        return a, b, c
 
     def initialize_weights(self):
         for module in self.modules():
@@ -106,15 +119,14 @@ class discriminator(nn.Module):
 
 class GAN(object):
     def __init__(self, args, test_only=False):
-        self.model_type = args.model_type
+        self.model_type = "GAN"
         self.epoch = args.epoch
         self.batch_size = args.batch_size
         self.dataset = args.dataset
-        self.save_dir = os.path.join(args.save_dir, self.dataset, "GAN")
+        self.save_dir = os.path.join(args.save_dir, self.dataset, self.model_type)
         self.gpu_mode = args.gpu_mode
         self.gpu_id = args.gpu_id
         self.test_only = test_only
-        self.z_dim = 62
 
         # Defines input/output dimensions
         if self.dataset == 'mnist':
@@ -122,6 +134,10 @@ class GAN(object):
             self.x_width = 28
             self.x_features = 1
             self.y_dim = 1
+            self.n_disc_code = 1
+            self.c_disc_dim = 10 
+            self.c_cont_dim = 2   
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         elif self.dataset == '3Dchairs':
@@ -130,6 +146,10 @@ class GAN(object):
             self.x_width = self.im_resize
             self.x_features = 3
             self.y_dim = 1
+            self.n_disc_code = 4
+            self.c_disc_dim = 20
+            self.c_cont_dim = 1
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         elif self.dataset == 'synth':
@@ -138,18 +158,22 @@ class GAN(object):
             self.x_width = self.im_resize
             self.x_features = 1
             self.y_dim = 1
+            self.n_disc_code = 1
+            self.c_disc_dim = 10
+            self.c_cont_dim = 3
+            self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
         else:
             raise Exception('Unsupported dataset')
 
         # Initializes the models and their optimizers
-        self.G = generator(self.z_dim, self.x_height, self.x_width, self.x_features)
+        self.G = generator(self.z_dim + self.c_dim, self.x_height, self.x_width, self.x_features)
         utils.print_network(self.G)
         self.G_optimizer = optim.Adam(self.G.parameters(), lr=args.lrG, betas=(args.beta1, args.beta2))
         
-        if not test_only: 
-            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim)
+        if not test_only:
+            self.D = discriminator(self.x_height, self.x_width, self.x_features, self.y_dim, self.n_disc_code*self.c_disc_dim, self.c_cont_dim)
             utils.print_network(self.D)
             self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
 
@@ -184,6 +208,7 @@ class GAN(object):
         self.train_history['per_epoch_time'] = []
         self.train_history['total_time'] = []
 
+    """
     def train(self):
         # Makes sure we have a dir to save the model and training info
         if not os.path.exists(self.save_dir):
@@ -270,20 +295,21 @@ class GAN(object):
         # Saves the plot of losses for G and D
         utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, 'curves.png'))
 
+    """
     def save(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
         # Saves the models
-        torch.save(self.G.state_dict(), os.path.join(self.save_dir, "GAN" + '_G.pkl'))
-        torch.save(self.D.state_dict(), os.path.join(self.save_dir, "GAN" + '_D.pkl'))
+        torch.save(self.G.state_dict(), os.path.join(self.save_dir, self.model_type + '_G.pkl'))
+        torch.save(self.D.state_dict(), os.path.join(self.save_dir, self.model_type + '_D.pkl'))
 
         # Saves the train history
-        with open(os.path.join(self.save_dir, "GAN" + '_history.pkl'), 'wb') as f:
+        with open(os.path.join(self.save_dir, self.model_type + '_history.pkl'), 'wb') as f:
             pickle.dump(self.train_history, f)
 
     def load(self):
         # Loads the necessary models
-        self.G.load_state_dict(torch.load(os.path.join(self.save_dir, "GAN" + '_G.pkl')))
+        self.G.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_G.pkl')))
         if not self.test_only: 
-            self.D.load_state_dict(torch.load(os.path.join(self.save_dir, "GAN" + '_D.pkl')))
+            self.D.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_D.pkl')))
