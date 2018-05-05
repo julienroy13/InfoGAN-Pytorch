@@ -1,5 +1,6 @@
 import argparse
 import os
+from model import MODEL
 from train import train
 from gan import GAN
 from infogan import infoGAN
@@ -51,10 +52,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # instanciates the model
-    if args.model_type == 'GAN':
-        model = GAN(args)
-    elif args.model_type == 'infoGAN':
-        model = infoGAN(args)
+    model = MODEL(args)
 
     # trains the model
     train(model)
