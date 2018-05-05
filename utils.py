@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import pdb
 
 def load_mnist(dataset):
     
@@ -82,7 +83,7 @@ def generate_samples(model, filename):
 
         # Discrete code
         c_disc = torch.from_numpy(np.random.multinomial(1, model.c_disc_dim * [float(1.0 / model.c_disc_dim)], size=[1])).type(torch.FloatTensor)
-        for i in range(model.n_disc_code-1):
+        for j in range(model.n_disc_code-1):
             c_disc = torch.cat([c_disc, torch.from_numpy(np.random.multinomial(1, model.c_disc_dim * [float(1.0 / model.c_disc_dim)], size=[1])).type(torch.FloatTensor)], dim=1)
 
         # Continuous code
@@ -111,3 +112,71 @@ def generate_samples(model, filename):
 
     plt.savefig(filename, bbox_inches='tight')
     plt.close()
+
+# ===================================
+# The folowing functions are not used for training.
+# Only used to generate figures by running utils.py directly
+
+def generate_figure1(model, filename):
+    model.G.eval()
+
+    # Creates samples and saves them
+    plt.figure(figsize=(20,8))
+
+    z_dim = 62
+    n_samples = 5
+    c_disc_dim = 10
+    c_cont_dim = 2
+    k=1
+    for i in range(n_samples):
+
+        # Basic z vector
+        z = torch.rand((1, z_dim))
+
+        # Continuous code
+        c_cont = torch.from_numpy(np.random.uniform(-1, 1, size=(1, c_cont_dim))).type(torch.FloatTensor)
+
+        # Converts to Variable (sends to GPU if necessary)
+        if model.gpu_mode:
+            z = Variable(z.cuda(model.gpu_id), volatile=True)
+            c_cont = Variable(c_cont.cuda(model.gpu_id), volatile=True)
+        else:
+            z = Variable(z, volatile=True)
+            c_cont = Variable(c_cont, volatile=True)
+
+        for j in range(n_disc_codes):
+            
+            # Discrete code
+            c_disc = torch.from_numpy(np.zeros(shape=(1,n_disc_codes))).type(torch.FloatTensor)
+            c_disc[j] = 1.
+
+            # Converts to Variable (sends to GPU if necessary)
+            if model.gpu_mode:
+                c_disc = Variable(c_disc.cuda(model.gpu_id), volatile=True)
+            else:
+                c_disc = Variable(c_disc, volatile=True)
+
+            # Forward propagation
+            x = model.G(z, c_cont, c_disc)
+
+            # Reshapes dimensions and convert to ndarray
+            x = x.cpu().data.numpy().transpose(0, 2, 3, 1).squeeze()
+
+            # Adds sample to the figure
+            plt.subplot(n_samples, c_disc_dim, k)
+            plt.imshow(x, cmap='gray')
+            plt.axis('off')
+            k += 1
+
+    plt.savefig(filename, bbox_inches='tight')
+    plt.close()
+
+def generate_figure2(model, filename):
+    pass
+
+def generate_figure3(model, filename):
+    pass
+
+if __name__ == "__main__":
+
+    pass
