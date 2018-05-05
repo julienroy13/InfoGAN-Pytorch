@@ -184,6 +184,9 @@ class GAN(object):
         self.train_history['total_time'] = []
 
     def train(self):
+        # Makes sure we have a dir to save the model and training info
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
 
         # Creates artificial labels that just indicates to the loss object if prediction of D should be 0 or 1
         if self.gpu_mode:
@@ -264,7 +267,7 @@ class GAN(object):
         self.save()
         
         # Saves the plot of losses for G and D
-        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, self.dataset, "GAN", 'curves.png'))
+        utils.save_loss_plot(self.train_history, filename=os.path.join(self.save_dir, 'curves.png'))
 
     def save(self):
         if not os.path.exists(self.save_dir):
