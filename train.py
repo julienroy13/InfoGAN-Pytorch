@@ -73,7 +73,7 @@ def train(model):
             D_loss = D_real_loss + D_fake_loss
             model.train_history['D_loss'].append(D_loss.data[0])
 
-            D_loss.backward(retain_graph=True)
+            D_loss.backward(retain_graph=is_infogan)
             model.D_optimizer.step()
 
             # update G network
@@ -85,7 +85,7 @@ def train(model):
             G_loss = model.BCE_loss(D_fake, y_real_)
             model.train_history['G_loss'].append(G_loss.data[0])
 
-            G_loss.backward(retain_graph=True)
+            G_loss.backward(retain_graph=is_infogan)
             model.G_optimizer.step()
 
             # information loss
