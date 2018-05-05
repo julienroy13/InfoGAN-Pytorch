@@ -150,7 +150,7 @@ class MODEL(object):
             self.im_resize = 128
             self.x_height = self.im_resize
             self.x_width = self.im_resize
-            self.x_features = 3
+            self.x_features = 1
             self.y_dim = 1
             self.n_disc_code = 4
             self.c_disc_dim = 20
@@ -214,7 +214,7 @@ class MODEL(object):
                 self.data_loader = DataLoader(dset, batch_size=self.batch_size, shuffle=True)
 
             elif self.dataset == '3Dchairs':
-                trans = transforms.Compose([transforms.Scale(self.im_resize), transforms.ToTensor()])
+                trans = transforms.Compose([transforms.Scale(self.im_resize), transforms.Grayscale(), transforms.ToTensor()])
                 self.data_loader = utils.load_3Dchairs(transform=trans, batch_size=self.batch_size)
 
             elif self.dataset == 'synth':
