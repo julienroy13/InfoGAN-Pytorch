@@ -1,5 +1,6 @@
 import argparse
 import os
+from train import train
 from gan import GAN
 from infogan import infoGAN
 import torch
@@ -56,4 +57,4 @@ if __name__ == '__main__':
         model = infoGAN(args)
 
     # trains the model
-    model.train()
+    train(model)

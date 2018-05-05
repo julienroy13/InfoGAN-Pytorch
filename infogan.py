@@ -120,6 +120,7 @@ class discriminator(nn.Module):
 
 class infoGAN(object):
     def __init__(self, args, test_only=False):
+        self.model_type = args.model_type
         self.epoch = args.epoch
         self.batch_size = args.batch_size
         self.dataset = args.dataset

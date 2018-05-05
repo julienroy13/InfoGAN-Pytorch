@@ -70,38 +70,36 @@ def save_loss_plot(train_history, filename, infogan=False):
     plt.savefig(filename)
     plt.close()
 
-def generate_samples(model, z_dim, filename, c_cont_dim=0, n_disc_code=0, c_disc_dim=0):
+def generate_samples(model, filename):
     model.G.eval()
 
     # Creates samples and saves them
     plt.figure(figsize=(20,20))
     for i in range(25):
 
-        z = torch.rand((1, z_dim))
-        if c_disc_dim != 0: # for infogan
-            c_disc = torch.from_numpy(np.random.multinomial(1, c_disc_dim * [float(1.0 / c_disc_dim)], size=[1])).type(torch.FloatTensor)
-            for i in range(n_disc_code-1):
-                c_disc = torch.cat([c_disc, torch.from_numpy(np.random.multinomial(1, self.c_disc_dim * [float(1.0 / self.c_disc_dim)], size=[self.batch_size])).type(torch.FloatTensor)], dim=1)
-        if c_cont_dim != 0: # for infogan
-            c_cont = torch.from_numpy(np.random.uniform(-1, 1, size=(1, c_cont_dim))).type(torch.FloatTensor)
+        # Basic z vector
+        z = torch.rand((1, model.z_dim))
+
+        # Discrete code
+        c_disc = torch.from_numpy(np.random.multinomial(1, model.c_disc_dim * [float(1.0 / model.c_disc_dim)], size=[1])).type(torch.FloatTensor)
+        for i in range(model.n_disc_code-1):
+            c_disc = torch.cat([c_disc, torch.from_numpy(np.random.multinomial(1, model.c_disc_dim * [float(1.0 / model.c_disc_dim)], size=[1])).type(torch.FloatTensor)], dim=1)
+
+        # Continuous code
+        c_cont = torch.from_numpy(np.random.uniform(-1, 1, size=(1, model.c_cont_dim))).type(torch.FloatTensor)
 
         # Converts to Variable (sends to GPU if necessary)
         if model.gpu_mode:
             z = Variable(z.cuda(model.gpu_id), volatile=True)
-            if c_disc_dim != 0 and c_cont_dim != 0:
-                c_disc = Variable(c_disc.cuda(model.gpu_id), volatile=True)
-                c_cont = Variable(c_cont.cuda(model.gpu_id), volatile=True)
+            c_disc = Variable(c_disc.cuda(model.gpu_id), volatile=True)
+            c_cont = Variable(c_cont.cuda(model.gpu_id), volatile=True)
         else:
             z = Variable(z, volatile=True)
-            if c_disc_dim != 0 and c_cont_dim != 0:
-                c_disc = Variable(c_disc, volatile=True)
-                c_cont = Variable(c_cont, volatile=True)
+            c_disc = Variable(c_disc, volatile=True)
+            c_cont = Variable(c_cont, volatile=True)
         
         # Forward propagation
-        if c_disc_dim == 0 and c_cont_dim == 0:
-            x = model.G(z)
-        elif c_disc_dim != 0 and c_cont_dim != 0:
-            x = model.G(z, c_cont, c_disc)
+        x = model.G(z, c_cont, c_disc)
 
         # Reshapes dimensions and convert to ndarray
         x = x.cpu().data.numpy().transpose(0, 2, 3, 1).squeeze()
