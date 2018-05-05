@@ -10,6 +10,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# ==== TO BE REMOVED ==========
+import scipy.misc
+import imageio
+# =============================
+
 def load_mnist(dataset):
     
     # Loads mnist data from pkl file
@@ -70,8 +75,7 @@ def save_loss_plot(train_history, filename, infogan=False):
     plt.savefig(filename)
     plt.close()
 
-def generate_samples(gan, z_dim, save_dir, c_disc_dim=0, c_cont_dim=0, seed=1234):
-    torch.manual_seed(seed)
+def generate_samples(gan, z_dim, filename, c_cont_dim=0, c_disc_dim=0):
     gan.G.eval()
 
     # Creates samples and saves them
@@ -110,5 +114,65 @@ def generate_samples(gan, z_dim, save_dir, c_disc_dim=0, c_cont_dim=0, seed=1234
         plt.imshow(x, cmap='gray')
         plt.axis('off')
 
-    plt.savefig(os.path.join(save_dir, 'seed{}.png'.format(seed)), bbox_inches='tight')
+    plt.savefig(filename, bbox_inches='tight')
+    plt.close()
+
+
+
+# ====================== TO BE DELETED AFTER REFACTORING ===========================================
+
+def save_images(images, size, image_path):
+    return imsave(images, size, image_path)
+
+def imsave(images, size, path):
+    image = np.squeeze(merge(images, size))
+    return scipy.misc.imsave(path, image)
+
+def merge(images, size):
+    h, w = images.shape[1], images.shape[2]
+    if (images.shape[3] in (3,4)):
+        c = images.shape[3]
+        img = np.zeros((h * size[0], w * size[1], c))
+        for idx, image in enumerate(images):
+            i = idx % size[1]
+            j = idx // size[1]
+            img[j * h:j * h + h, i * w:i * w + w, :] = image
+        return img
+    elif images.shape[3]==1:
+        img = np.zeros((h * size[0], w * size[1]))
+        for idx, image in enumerate(images):
+            i = idx % size[1]
+            j = idx // size[1]
+            img[j * h:j * h + h, i * w:i * w + w] = image[:,:,0]
+        return img
+    else:
+        raise ValueError('in merge(images,size) images parameter ''must have dimensions: HxW or HxWx3 or HxWx4')
+
+def generate_animation(path, num):
+    images = []
+    for e in range(num):
+        img_name = path + '_epoch%03d' % (e+1) + '.png'
+        images.append(imageio.imread(img_name))
+    imageio.mimsave(path + '_generate_animation.gif', images, fps=5)
+
+def loss_plot(hist, path = 'Train_hist.png', model_name = ''):
+    x = range(len(hist['D_loss']))
+
+    y1 = hist['D_loss']
+    y2 = hist['G_loss']
+
+    plt.plot(x, y1, label='D_loss')
+    plt.plot(x, y2, label='G_loss')
+
+    plt.xlabel('Iter')
+    plt.ylabel('Loss')
+
+    plt.legend(loc=4)
+    plt.grid(True)
+    plt.tight_layout()
+
+    path = os.path.join(path, model_name + '_loss.png')
+
+    plt.savefig(path)
+
     plt.close()
