@@ -3,6 +3,7 @@ import torch
 import time
 import os
 import pickle
+import pdb
 import itertools
 import numpy as np
 import torch.nn as nn
@@ -39,15 +40,15 @@ class generator(nn.Module):
             # First layers are fully connected
             self.fc_part = nn.Sequential(
                 nn.Linear(self.latent_dim, 1024), nn.BatchNorm1d(1024), nn.ReLU(),
-                nn.Linear(1024, 256 * 8 * 8), nn.BatchNorm1d(256 * 8 * 8), nn.ReLU(),
+                nn.Linear(1024, 256 * 6 * 6), nn.BatchNorm1d(256 * 6 * 6), nn.ReLU(),
             )
 
             # Then we switch to deconvolution (transpose convolutions)
             self.deconv_part = nn.Sequential(
-                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
-                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
-                nn.ConvTranspose2d(256, 128, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
-                nn.ConvTranspose2d(128, 64, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+                nn.ConvTranspose2d(256, 256, kernel_size=4, stride=1, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+                nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+                nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
                 nn.ConvTranspose2d(64, self.output_features, kernel_size=4, stride=2, padding=1),
                 nn.Sigmoid(), #[0, 1] images
             )
@@ -68,7 +69,7 @@ class generator(nn.Module):
         if dataset == "mnist":
             x = x.view(-1, 128, 7, 7)
         elif dataset == "3Dchairs":
-            x = x.view(-1, 256, 8, 8)
+            x = x.view(-1, 256, 6, 6)
         else:
             raise NotImplemented
         
@@ -118,7 +119,7 @@ class discriminator(nn.Module):
 
             # Then we switch to fully connected before sigmoidal output unit
             self.fc_part = nn.Sequential(
-                nn.Linear(256 * 8 * 8, 1024), nn.BatchNorm1d(1024), nn.LeakyReLU(0.2),
+                nn.Linear(256 * 6 * 6, 1024), nn.BatchNorm1d(1024), nn.LeakyReLU(0.2),
                 nn.Linear(1024, self.output_dim + self.len_continuous_code + self.len_discrete_code),
             )
 
@@ -135,7 +136,7 @@ class discriminator(nn.Module):
         if dataset == "mnist":
             y = y.view(-1, 128 * 7 * 7)
         elif dataset == "3Dchairs":
-            y = y.view(-1, 256 * 8 * 8)
+            y = y.view(-1, 256 * 6 * 6)
         else:
             raise NotImplemented
 
