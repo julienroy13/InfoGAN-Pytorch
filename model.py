@@ -76,6 +76,14 @@ class generator(nn.Module):
         # Feedforward through deconvolutional part (upsampling)
         x = self.deconv_part(x)
 
+        # Makes sure the shape is right
+        if dataset == "mnist":
+            assert x.size(2)==28 and x.size(3)==28, "Input to discriminator for {} dataset not of shape (batch,channels,28,28)".format(dataset)
+        elif dataset == "3Dchairs":
+            assert x.size(2)==64 and x.size(3)==64, "Input to discriminator for {} dataset not of shape (batch,channels,64,64)".format(dataset)
+        else:
+            raise NotImplemented
+
         return x
 
     def initialize_weights(self):
@@ -129,6 +137,14 @@ class discriminator(nn.Module):
         self.initialize_weights()
 
     def forward(self, x, dataset):
+        # Makes sure the shape is right
+        if dataset == "mnist":
+            assert x.size(2)==28 and x.size(3)==28, "Input to discriminator for {} dataset not of shape (batch,channels,28,28)".format(dataset)
+        elif dataset == "3Dchairs":
+            assert x.size(2)==64 and x.size(3)==64, "Input to discriminator for {} dataset not of shape (batch,channels,64,64)".format(dataset)
+        else:
+            raise NotImplemented
+
         # Feedforwards through convolutional (subsampling) layers
         y = self.conv_part(x)
 
@@ -182,7 +198,7 @@ class MODEL(object):
             self.y_dim = 1
             self.n_disc_code = 1
             self.c_disc_dim = 10 
-            self.c_cont_dim = 2   
+            self.c_cont_dim = 2  
             self.c_dim = self.n_disc_code*self.c_disc_dim + self.c_cont_dim
             self.z_dim = 62
 
@@ -223,16 +239,16 @@ class MODEL(object):
             utils.print_network(self.D)
             self.D_optimizer = optim.Adam(self.D.parameters(), lr=args.lrD, betas=(args.beta1, args.beta2))
         
-        self.info_optimizer = optim.Adam(itertools.chain(self.G.parameters(), self.D.parameters()), lr=args.lrD, betas=(args.beta1, args.beta2))
+            self.info_optimizer = optim.Adam(itertools.chain(self.G.parameters(), self.D.parameters()), lr=args.lrD, betas=(args.beta1, args.beta2))
 
-        # Loss functions
-        self.BCE_loss = nn.BCELoss()
+            # Loss functions
+            self.BCE_loss = nn.BCELoss()
 
-        if is_infogan:
-            self.MSE_loss = nn.MSELoss()
-            self.CE_losses = []
-            for i in range(self.n_disc_code):
-                self.CE_losses.append(nn.CrossEntropyLoss())
+            if is_infogan:
+                self.MSE_loss = nn.MSELoss()
+                self.CE_losses = []
+                for i in range(self.n_disc_code):
+                    self.CE_losses.append(nn.CrossEntropyLoss())
 
         # Sends the models of GPU (if defined)
         if self.gpu_mode:
@@ -240,11 +256,11 @@ class MODEL(object):
             if not test_only: 
                 self.D.cuda(self.gpu_id)
             
-            if is_infogan:
-                self.BCE_loss.cuda(self.gpu_id)
-                self.MSE_loss.cuda(self.gpu_id)
-                for ce_loss in self.CE_losses:
-                    ce_loss.cuda(self.gpu_id)
+                if is_infogan:
+                    self.BCE_loss.cuda(self.gpu_id)
+                    self.MSE_loss.cuda(self.gpu_id)
+                    for ce_loss in self.CE_losses:
+                        ce_loss.cuda(self.gpu_id)
 
         # Load the dataset
         if not test_only:
@@ -261,14 +277,14 @@ class MODEL(object):
                 trans = transforms.Compose([transforms.Scale(self.im_resize), transforms.Grayscale(), transforms.ToTensor()])
                 self.data_loader = utils.load_synth(transform=trans, batch_size=self.batch_size)
 
-        # Creates train history dictionnary to record important training indicators
-        self.train_history = {}
-        self.train_history['D_loss'] = []
-        self.train_history['G_loss'] = []
-        self.train_history['per_epoch_time'] = []
-        self.train_history['total_time'] = []
-        if is_infogan:
-            self.train_history['info_loss'] = []
+            # Creates train history dictionnary to record important training indicators
+            self.train_history = {}
+            self.train_history['D_loss'] = []
+            self.train_history['G_loss'] = []
+            self.train_history['per_epoch_time'] = []
+            self.train_history['total_time'] = []
+            if is_infogan:
+                self.train_history['info_loss'] = []
 
     def save(self):
         torch.save(self.G.state_dict(), os.path.join(self.save_dir, self.model_type + '_G.pkl'))
@@ -279,4 +295,5 @@ class MODEL(object):
 
     def load(self):
         self.G.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_G.pkl')))
-        self.D.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_D.pkl')))
+        if not self.test_only:
+            self.D.load_state_dict(torch.load(os.path.join(self.save_dir, self.model_type + '_D.pkl')))
